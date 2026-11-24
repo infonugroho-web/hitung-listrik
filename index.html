@@ -49,6 +49,15 @@ h2{font-size:18px;margin:0;line-height:1.3;font-weight:700}
 .mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
 .mrow div{background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;font-size:12.5px;color:#c3c9d4}
 .mrow b{display:block;font-size:16px;color:#fff;line-height:1.35;margin-top:2px}
+.mact{display:flex;gap:8px;margin-top:14px}.mact button,.sform button{flex:1;min-height:44px;border-radius:12px;border:0;background:#fff;color:#1d2a44;font:inherit;font-weight:700;font-size:14px;cursor:pointer}
+.mact .ghost,.sform .ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.35);font-weight:600}
+.sform{margin-top:12px;display:grid;gap:8px}.sform label{font-size:13px;color:#c3c9d4}.sform input{background:#fff;color:#1d2a44}.sform .row{display:flex;gap:8px}
+.smsg{font-size:13px;color:#cfe8d2;margin-top:8px;min-height:0}.smsg:empty{display:none}
+.hl{display:grid;gap:10px}.hi{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.hi.cur{border-color:var(--blue);box-shadow:0 0 0 2px light-dark(rgba(40,83,199,.12),rgba(134,166,245,.15))}
+.hi b{font-size:15px}.hi .m{grid-column:1;font-size:13px;color:var(--mute)}.hi .tot{font-weight:700;text-align:right}
+.hi .act{grid-column:1/-1;display:flex;gap:8px;margin-top:6px}.hi .act button{min-height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--blue);font:inherit;font-weight:600;font-size:13.5px;cursor:pointer}
+.hi .act .del2{color:var(--mute);margin-left:auto}
 .load{margin-top:14px;font-size:13px;color:#c3c9d4}
 .bar{height:8px;background:rgba(255,255,255,.1);border-radius:6px;overflow:hidden;margin-top:6px}
 .bar i{display:block;height:100%;background:#9bd0a6;border-radius:6px;transition:width .3s}
@@ -185,6 +194,10 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
     <div>Token disarankan<b id="tokenSug"></b></div>
   </div>
   <div class="load" id="load"><span>Perkiraan beban puncak: <b id="loadTxt"></b></span><div class="bar"><i id="loadBar"></i></div></div>
+  <div class="mact"><button type="button" id="saveBtn">Simpan hitungan</button><button type="button" id="histBtn" class="ghost">Riwayat</button></div>
+  <form class="sform" id="sform" hidden><label for="sname">Nama hitungan</label><input id="sname" maxlength="40" placeholder="mis. Rumah Sawangan" enterkeyhint="done">
+   <div class="row"><button type="submit" id="sOk">Simpan</button><button type="button" class="ghost" id="sCancel">Batal</button></div></form>
+  <div class="smsg" id="smsg" aria-live="polite"></div>
 </aside>
 </div></div>
 
@@ -203,6 +216,12 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
     <p class="note" style="margin-top:10px">Belum termasuk biaya admin tiap aplikasi atau bank.</p>
   </div>
   <div class="pane daya" id="p-daya" role="tabpanel" aria-labelledby="t-daya" hidden><div id="dayaBox"></div></div>
+</div></section>
+
+<section class="band" style="padding-top:0" id="riwayat"><div class="wrap card">
+  <div class="step"><span class="n">4</span><h2>Riwayat hitungan</h2></div>
+  <p class="hint" style="margin:0 0 10px">Setiap kali dibuka, aplikasi mulai dari kosong. Hitungan yang kamu simpan ada di sini, hanya di perangkat ini.</p>
+  <div id="hist"></div>
 </div></section>
 
 <section class="band" style="padding-top:0"><div class="wrap">
@@ -394,13 +413,15 @@ const $=id=>document.getElementById(id);
 const rp=x=>"Rp"+Math.round(x).toLocaleString("id-ID");
 const num=(x,d=0)=>x.toLocaleString("id-ID",{maximumFractionDigits:d,minimumFractionDigits:0});
 let S;
-const fresh=()=>({gol:"",kota:"Kota Depok",ppj:0,hari:30,items:[]});
-try{S=JSON.parse(localStorage.getItem("hitungListrik2"))}catch(e){}
+const fresh=()=>({gol:"",kota:"",ppj:0,hari:30,items:[]});
+let LEARN={};try{LEARN=(JSON.parse(localStorage.getItem("hitungListrik2"))||{}).learned||{}}catch(e){}
+try{S=JSON.parse(sessionStorage.getItem("hitungListrikSesi"))}catch(e){}
 // versi lama otomatis mengisi contoh: pertahankan pengaturan, buang daftar alatnya
-if(!S){try{const o=JSON.parse(localStorage.getItem("hitungListrik"));if(o){S={...fresh(),gol:o.gol||"1300",kota:o.kota||"",ppj:o.ppj||0,hari:o.hari||30,learned:o.learned};localStorage.removeItem("hitungListrik")}}catch(e){}}
+try{const o=JSON.parse(localStorage.getItem("hitungListrik"));if(o){LEARN={...(o.learned||{}),...LEARN};localStorage.removeItem("hitungListrik")}}catch(e){}
 if(!S||!Array.isArray(S.items))S=fresh();
+S.learned=LEARN;
 S.items.forEach(it=>{if(/kompresor ±10 jam/.test(it.n)){it.n=it.n.replace(/ \(kompresor ±10 jam\)/,"");it.h=24;it.d=0.45}});
-const save=()=>{try{localStorage.setItem("hitungListrik2",JSON.stringify(S))}catch(e){}};
+const save=()=>{try{sessionStorage.setItem("hitungListrikSesi",JSON.stringify(S));localStorage.setItem("hitungListrik2",JSON.stringify({learned:S.learned||{}}))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 $("gol").innerHTML='<option value="" disabled>Pilih daya listrik…</option>'+GOL.map(g=>`<option value="${g.id}">${g.n} · Rp${num(g.t,2)}/kWh</option>`).join("");
@@ -595,9 +616,41 @@ $("saran").addEventListener("mousedown",e=>e.preventDefault());
 $("saran").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.other)pickOther();else pick(+b.dataset.h)});
 document.addEventListener("click",e=>{if(!e.target.closest(".srch"))hideSaran()});
 function flash(msg){const h=$("addMsg");h.textContent=msg;clearTimeout(flash.t);flash.t=setTimeout(()=>h.textContent="",4000)}
+// ===== riwayat (disimpan di perangkat) =====
+const HK="hitungListrikRiwayat";
+const hLoad=()=>{try{return JSON.parse(localStorage.getItem(HK))||[]}catch(e){return[]}};
+const hSave=a=>{try{localStorage.setItem(HK,JSON.stringify(a));return true}catch(e){return false}};
+const tgl=t=>new Date(t).toLocaleString("id-ID",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+function totals(o){const G=GOL.find(x=>x.id===o.gol);let k=0;o.items.forEach(it=>k+=it.w*it.q*it.h*(it.d||1)*o.hari/1000);
+ if(!G)return{k,c:null};const r=findD(o.kota),v=r.d?r.d[1](G.va,G):null,pp=(r.d&&r.d[3]&&+o.ppj>0)?+o.ppj:(v!=null?v:(+o.ppj||0));return{k,c:k*G.t*(1+pp/100)}}
+function renderHist(){const a=hLoad();$("histBtn").textContent=a.length?`Riwayat (${a.length})`:"Riwayat";
+ $("hist").innerHTML=a.length?'<div class="hl">'+a.map(h=>{const G=GOL.find(x=>x.id===h.gol),t=totals(h);
+  return`<div class="hi${h.id===S.rid?" cur":""}"><b>${esc(h.name)}</b><span class="tot">${t.c!=null?rp(t.c):"–"}<small style="font-weight:400;color:var(--mute)">/bln</small></span>
+  <span class="m">${tgl(h.t)} · ${G?G.n.replace(" (subsidi)"," subsidi"):"daya belum dipilih"}${h.kota?" · "+esc(h.kota):""} · ${h.items.length} alat · ${num(t.k,0)} kWh</span>
+  <div class="act"><button type="button" data-open="${h.id}">${h.id===S.rid?"Sedang dibuka":"Buka"}</button><button type="button" class="del2" data-hdel="${h.id}">Hapus</button></div></div>`}).join("")+"</div>"
+  :'<p class="note">Belum ada hitungan tersimpan. Tekan <b>Simpan hitungan</b> di kotak perkiraan setelah selesai mengisi.</p>'}
+function smsg(m){$("smsg").textContent=m;clearTimeout(smsg.t);smsg.t=setTimeout(()=>$("smsg").textContent="",5000)}
+$("saveBtn").addEventListener("click",()=>{if(!S.items.length){smsg("Tambahkan alat listrik dulu sebelum menyimpan.");return}
+ const cur=S.rid&&hLoad().find(h=>h.id===S.rid);$("sname").value=cur?cur.name:(S.kota?"Rumah "+S.kota.replace(/^(Kota|Kabupaten) /,""):"Rumah");
+ $("sform").hidden=false;$("saveBtn").parentNode.hidden=true;$("sname").focus();$("sname").select()});
+$("sCancel").addEventListener("click",()=>{$("sform").hidden=true;$("saveBtn").parentNode.hidden=false});
+$("sform").addEventListener("submit",e=>{e.preventDefault();const name=$("sname").value.trim()||"Rumah";let a=hLoad();
+ const snap={name,t:Date.now(),gol:S.gol,kota:S.kota,ppj:S.ppj,hari:S.hari,items:JSON.parse(JSON.stringify(S.items))};
+ const i=S.rid?a.findIndex(h=>h.id===S.rid&&h.name===name):-1;
+ if(i>=0){snap.id=S.rid;a.splice(i,1)}else{snap.id="h"+Date.now().toString(36)}
+ a.unshift(snap);a=a.slice(0,30);
+ if(!hSave(a)){smsg("Gagal menyimpan: penyimpanan browser penuh atau diblokir.");return}
+ S.rid=snap.id;save();$("sform").hidden=true;$("saveBtn").parentNode.hidden=false;renderHist();smsg(i>=0?`“${name}” diperbarui.`:`Tersimpan sebagai “${name}”. Lihat di Riwayat.`)});
+$("histBtn").addEventListener("click",()=>{const el=$("riwayat"),y=el.getBoundingClientRect().top+window.pageYOffset-12;try{window.scrollTo({top:y,behavior:"smooth"})}catch(e){window.scrollTo(0,y)}});
+$("hist").addEventListener("click",e=>{const o=e.target.dataset.open,d=e.target.dataset.hdel;
+ if(o){const h=hLoad().find(x=>x.id===o);if(!h)return;S={...fresh(),gol:h.gol,kota:h.kota,ppj:h.ppj,hari:h.hari,items:JSON.parse(JSON.stringify(h.items)),rid:h.id,learned:S.learned};
+  openI=-1;syncTop();renderList();calc();idInfo();renderHist();goMeter();smsg(`Dibuka: “${h.name}”. Kalau kamu ubah, tekan Simpan lagi.`)}
+ if(d){const a=hLoad(),h=a.find(x=>x.id===d);if(!h)return;hSave(a.filter(x=>x.id!==d));if(S.rid===d){delete S.rid;save()}renderHist();
+  $("hist").insertAdjacentHTML("afterbegin",`<p class="note" id="undoH">“${esc(h.name)}” dihapus. <button class="link" type="button">Urungkan</button></p>`);
+  $("undoH").querySelector("button").onclick=()=>{const b=hLoad();b.push(h);b.sort((x,y)=>y.t-x.t);hSave(b);renderHist()}}});
 $("resetBtn").addEventListener("click",()=>{openI=-1;S.items=sampleItems();renderList();calc();flash("Contoh rumah tangga diisi. Ubah atau hapus sesuai rumahmu.")});
-$("clearBtn").addEventListener("click",()=>{openI=-1;S.items=[];renderList();calc()});
-syncTop();renderList();calc();
+$("clearBtn").addEventListener("click",()=>{openI=-1;S.items=[];delete S.rid;renderList();calc();renderHist()});
+syncTop();renderList();calc();renderHist();
 }
 </script>
 <script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>

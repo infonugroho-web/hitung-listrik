@@ -81,6 +81,11 @@ button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 button{font:inherit;font-weight:600;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;padding:0 14px}
 button.del{padding:0;font-size:20px;color:var(--mute);min-height:46px}button.del:hover{color:var(--warn);border-color:var(--warn)}
 button.pri{background:var(--btn);color:#fff;border-color:var(--btn)}
+select.need{border-color:var(--blue);box-shadow:0 0 0 3px light-dark(rgba(40,83,199,.15),rgba(134,166,245,.18));color:var(--mute)}
+.how{margin:0 0 10px;font-size:14px;line-height:1.5;color:var(--ink,inherit)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chips button{border:1px solid var(--line);background:var(--card);color:var(--blue);border-radius:999px;padding:8px 13px;min-height:40px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer}
+.chips button:hover{background:var(--soft)}.chips button.on{color:var(--mute);font-weight:400;border-style:dashed}
 .srch{position:relative}.srch input{padding-inline-start:40px;background:var(--soft) no-repeat 13px 50%/18px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E")}
 .srch input:focus{background-color:var(--card)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -155,11 +160,13 @@ td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
   </div>
   <div class="sec">
   <div class="step"><span class="n">2</span><h2>Alat listrik di rumah</h2></div>
+  <p class="how"><b>Cara menambah:</b> ketik nama alat di kolom ini, lalu <b>ketuk alatnya</b> dari daftar yang muncul. Atau ketuk tombol cepat di bawah.</p>
   <div class="srch">
     <label for="cari" class="sr">Cari alat listrik</label>
     <input id="cari" type="search" autocomplete="off" enterkeyhint="done" placeholder="Ketik nama alat, mis. kulkas, rice cooker" aria-controls="saran" aria-expanded="false">
     <div id="saran" class="saran" role="listbox" hidden></div>
   </div>
+  <div class="chips" id="chips" aria-label="Tambah cepat"></div>
   <div id="addMsg" class="hint" aria-live="polite" style="min-height:20px;margin:6px 0 6px"></div>
   <div class="list" id="list"></div>
   <p class="hint" style="margin-top:10px">Ketuk alat untuk mengubah watt, jumlah, atau jam pakainya. Watt ada di stiker belakang alat atau di kardusnya.<br><button class="link" id="resetBtn">Isi contoh rumah tangga</button> · <button class="link" id="clearBtn">Kosongkan</button></p>
@@ -387,7 +394,7 @@ const $=id=>document.getElementById(id);
 const rp=x=>"Rp"+Math.round(x).toLocaleString("id-ID");
 const num=(x,d=0)=>x.toLocaleString("id-ID",{maximumFractionDigits:d,minimumFractionDigits:0});
 let S;
-const fresh=()=>({gol:"1300",kota:"Kota Depok",ppj:0,hari:30,items:[]});
+const fresh=()=>({gol:"",kota:"Kota Depok",ppj:0,hari:30,items:[]});
 try{S=JSON.parse(localStorage.getItem("hitungListrik2"))}catch(e){}
 // versi lama otomatis mengisi contoh: pertahankan pengaturan, buang daftar alatnya
 if(!S){try{const o=JSON.parse(localStorage.getItem("hitungListrik"));if(o){S={...fresh(),gol:o.gol||"1300",kota:o.kota||"",ppj:o.ppj||0,hari:o.hari||30,learned:o.learned};localStorage.removeItem("hitungListrik")}}catch(e){}}
@@ -396,14 +403,14 @@ S.items.forEach(it=>{if(/kompresor ±10 jam/.test(it.n)){it.n=it.n.replace(/ \(k
 const save=()=>{try{localStorage.setItem("hitungListrik2",JSON.stringify(S))}catch(e){}};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-$("gol").innerHTML=GOL.map(g=>`<option value="${g.id}">${g.n} · Rp${num(g.t,2)}/kWh</option>`).join("");
+$("gol").innerHTML='<option value="" disabled>Pilih daya listrik…</option>'+GOL.map(g=>`<option value="${g.id}">${g.n} · Rp${num(g.t,2)}/kWh</option>`).join("");
 
 const kwhOf=it=>it.w*it.q*it.h*(it.d||1)*S.hari/1000;
-const g=()=>GOL.find(x=>x.id===S.gol)||GOL[3];
+const g=()=>GOL.find(x=>x.id===S.gol)||null;
 const rateFor=G=>{const r=findD(S.kota),v=r.d?r.d[1](G.va,G):null;if(r.d&&r.d[3]&&+S.ppj>0)return +S.ppj;return v!=null?v:(+S.ppj||0)};
 const tax=(G=g())=>1+rateFor(G)/100;
 $("kotaList").innerHTML=[...new Set([...DAERAH.map(d=>d[0]),...Object.values(PREFIX).flatMap(x=>x.slice(1)).filter(Boolean)])].sort().map(n=>`<option value="${n}">`).join("");
-function renderPbjt(){const G=g(),r=findD(S.kota),box=$("pbjtInfo");
+function renderPbjt(){const G=g()||GOL[3],r=findD(S.kota),box=$("pbjtInfo");if(!g()){box.innerHTML=S.kota?`Pajak daerah <b>${esc(S.kota)}</b> muncul setelah kamu memilih daya listrik di atas.`:`Pilih daya listrik dan ketik kota/kabupaten untuk mengisi pajak daerah otomatis.`;return}
  if(r.d&&r.d[1](G.va,G)==null){box.innerHTML=`Tarif pajak <b>${esc(r.d[0])}</b> untuk ${G.n} belum ada di data. Pakai ${num(+S.ppj||0,1)}% sementara; isi dari struk token di bawah.`}
  else if(r.d&&r.d[3]&&+S.ppj>0){box.innerHTML=`PBJT-TL di <b>${esc(r.d[0])}</b>: <b>${num(+S.ppj,1)}%</b> <span class="src">· dari struk tokenmu</span>`}
  else if(r.d&&r.d[3]){box.innerHTML=`PBJT-TL (dulu PPJ) di <b>${esc(r.d[0])}</b>: <b>±${num(r.d[1](G.va,G),1)}%</b> <span class="src">· perkiraan; tarif rinci belum kami temukan. Semua daerah Jatim yang sudah dicek memakai 10%. Cocokkan dengan struk token di bawah.</span>`}
@@ -414,8 +421,8 @@ function renderPbjt(){const G=g(),r=findD(S.kota),box=$("pbjtInfo");
 
 let openI=-1;
 function renderList(){
- const L=$("list");
- if(!S.items.length){L.style.border="0";L.innerHTML='<div class="empty">Belum ada alat. Ketik nama alat di kolom pencarian di atas.</div>';return}
+ const L=$("list");try{renderChips()}catch(e){}
+ if(!S.items.length){L.style.border="0";L.innerHTML='<div class="empty">Belum ada alat. Ketik nama alat di kolom pencarian, lalu ketuk alatnya dari daftar.</div>';return}
  L.style.border="";
  L.innerHTML=S.items.map((it,i)=>`<div class="item${i===openI?" open":""}" data-i="${i}">
   <button class="sum" data-tog="${i}" aria-expanded="${i===openI}"><span class="sn" id="sn${i}">${esc(it.n)}</span><b id="cr${i}"></b><span class="chev" aria-hidden="true">▾</span><span class="meta" id="cm${i}"></span></button>
@@ -450,7 +457,7 @@ function renderDaya(G,T,kwh,all,P){const box=$("dayaBox");
    h+=`<p>Kalau sering jeglek, pertimbangkan tambah daya ke <b>${num(rec)} VA</b>. `+(Math.abs(tNew-G.t)<0.01?`Tarif per kWh-nya sama (Rp${num(G.t,2)}), jadi tagihan bulanan untuk pemakaian yang sama tidak berubah.`:`Tarif per kWh-nya jadi Rp${num(tNew,2)}${G.va<=900&&G.t<1000?" (tidak lagi bersubsidi)":""}, sehingga tagihan untuk pemakaian yang sama jadi sekitar <b>${rp(cNew)}</b>/bulan (sekarang ${rp(cNow)}).`)+` Biaya penyambungan tambah daya dibayar sekali di awal; cek besarnya di PLN Mobile.</p>`}}
  box.innerHTML=h}
 function calc(){
- const G=g(),T=tax();
+ const noG=!g(),G=g()||GOL[3],T=tax(G);$("gol").classList.toggle("need",noG);
  let kwh=0,peak=0;const P=peakOf();
  S.items.forEach((it,i)=>{const k=kwhOf(it);kwh+=k;peak+=it.w*it.q;
   const a=$("cm"+i),b=$("cr"+i),n=$("sn"+i);if(a){a.textContent=`${num(it.q)} × ${num(it.w)} W · ${it.d?`nyala ${num(it.h,2)} jam`:`${num(it.h,2)} jam/hari`}`;b.textContent=rp(k*G.t*T);n.textContent=it.n}});
@@ -458,7 +465,7 @@ function calc(){
  $("golLbl").textContent=G.n.replace(" (subsidi)"," subsidi");
  $("kwh").textContent=num(kwh,0);
  $("rp").textContent=rp(cost);
- $("dockRp").textContent=rp(cost);{const pc=P.w/G.va*100,ds=$("dockSub");ds.textContent=`${num(kwh,0)} kWh`+(pc>100?" · rawan jeglek":pc>80?" · daya mepet":"");ds.className=pc>80?"warn":""}dockVis();
+ $("dockRp").textContent=rp(cost);{const pc=P.w/G.va*100,ds=$("dockSub");ds.textContent=`${num(kwh,0)} kWh`+(noG?" · pilih daya dulu":pc>100?" · rawan jeglek":pc>80?" · daya mepet":"");ds.className=pc>80?"warn":""}dockVis();
  const R0=rateFor(G);renderPbjt();
  $("rpNote").textContent=`Tarif Rp${num(G.t,2)}/kWh`+(R0>0?` + PBJT ${num(R0,1)}%`:" · belum termasuk pajak daerah");
  $("perDay").textContent=rp(cost/S.hari);
@@ -494,6 +501,12 @@ function calc(){
   return `<tr><td>${v>=1e6?"Rp1 juta":rp(v)}</td><td class="n">${num(k,1)}</td><td class="n">${kwh>0?num(d,0)+" hari":"–"}</td></tr>`}).join("");
  // golongan sim
  renderDaya(G,T,kwh,peak,P);
+ if(noG){const m='<p class="note">Pilih <b>daya listrik rumah</b> di langkah 1 dulu, supaya biaya dan saran bisa dihitung.</p>';
+  $("golLbl").textContent="";$("rp").textContent="Rp –";$("dockRp").textContent="Pilih daya";$("rpNote").textContent="Pilih daya listrik di langkah 1 untuk melihat biayanya";
+  $("perDay").textContent="–";$("tokenSug").textContent="–";$("loadTxt").textContent=`${num(P.w)} W · pilih daya untuk mengecek`;$("loadBar").style.width="0";
+  $("load").classList.remove("over","mid");$("t-daya").classList.remove("dot","bad");
+  S.items.forEach((it,i)=>{const b=$("cr"+i);if(b)b.textContent=""});
+  $("rank").innerHTML=m;$("tips").innerHTML=`<li>${m.replace(/<\/?p[^>]*>/g,"")}</li>`;$("tok").innerHTML=`<tr><td colspan="3">${m.replace(/<\/?p[^>]*>/g,"")}</td></tr>`;$("dayaBox").innerHTML=m}
  save();
 }
 
@@ -538,7 +551,7 @@ $("dockBtn").addEventListener("click",e=>{e.preventDefault();goMeter()});
 {const tabs=[...document.querySelectorAll('[role=tab]')];
  const sel=t=>{tabs.forEach(b=>{const on=b===t;b.setAttribute("aria-selected",on);b.tabIndex=on?0:-1;$(b.getAttribute("aria-controls")).hidden=!on})};
  tabs.forEach((b,i)=>{b.addEventListener("click",()=>sel(b));b.addEventListener("keydown",e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){const n=tabs[(i+(e.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length];sel(n);n.focus()}})})}
-function syncTop(){$("gol").value=S.gol;$("kota").value=S.kota||"";$("hari").value=S.hari}
+function syncTop(){$("gol").value=S.gol||"";$("kota").value=S.kota||"";$("hari").value=S.hari}
 $("gol").addEventListener("change",e=>{S.gol=e.target.value;calc()});
 $("kota").addEventListener("input",e=>{S.kota=e.target.value;calc()});
 $("ppj").addEventListener("input",e=>{S.ppj=Math.max(0,Math.min(10,+e.target.value||0));calc()});
@@ -558,6 +571,9 @@ function addItem(it,focusId){
  const row=document.querySelector(".item:last-child");row&&row.scrollIntoView({block:"nearest",behavior:"smooth"});
  if(focusId){const el=$(focusId+openI);el&&el.focus()}}
 const POP=["Lampu LED 9 W","Kulkas 1 pintu","AC 1/2 PK","Rice cooker – memasak","TV LED 32 inci","Kipas angin berdiri","Pompa air 125 W","Charger HP biasa"];
+const CHIP=[["Lampu","Lampu LED 9 W"],["Kulkas","Kulkas 1 pintu"],["TV","TV LED 32 inci"],["Kipas angin","Kipas angin berdiri"],["Rice cooker","Rice cooker – memasak"],["Pompa air","Pompa air 125 W"],["AC","AC 1/2 PK"],["Charger HP","Charger HP biasa"]];
+function renderChips(){$("chips").innerHTML=CHIP.filter(c=>CAT.find(x=>x[0]===c[1])).map(c=>{const has=S.items.some(it=>low(it.n)===low(c[1]));return`<button type="button" data-chip="${esc(c[1])}"${has?' class="on"':""}>${has?"✓ ":"+ "}${esc(c[0])}</button>`}).join("")}
+$("chips").addEventListener("click",e=>{const b=e.target.closest("[data-chip]");if(!b)return;addItem(fromCat(CAT.find(x=>x[0]===b.dataset.chip)));renderChips()});
 let hits=[],act=-1;
 function search(q){const t=low(q).split(" ").filter(Boolean);
  if(!t.length)return POP.map(n=>CAT.find(c=>c[0]===n));

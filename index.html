@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hitung Listrik Rumah</title>
+<meta name="description" content="Hitung perkiraan tagihan dan token listrik rumah dari daftar alat listrikmu. Alat hitung independen, bukan aplikasi resmi PLN.">
+<meta name="theme-color" content="#2a56c9">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: tenang dan praktis, alat hitung rumah tangga yang enak dibaca lama
+   IDEA: meteran prabayar di dinding, layar LCD yang dibaca tiap bulan
+   PICTURE: muka meteran besar berisi kWh dan rupiah, berubah langsung saat alat diisi
+   COLOUR and TYPE: abu netral yang lembut, satu biru tenang, LCD hijau pucat, kuning hanya untuk aksi; Plus Jakarta Sans + Chakra Petch
+   LAYOUT: langkah 1-2 (isian) di kiri, meteran di kanan; HP: meteran dulu; hasil dalam tab supaya halaman pendek */
+:root{color-scheme:light dark;
+--bg:light-dark(#f3f4f6,#101318);--card:light-dark(#ffffff,#181c23);--soft:light-dark(#f1f4fa,#1e2430);--ink:light-dark(#1d2129,#e3e6eb);--mute:light-dark(#5f6774,#9ba3b0);
+--line:light-dark(#e4e7ec,#272d37);--blue:light-dark(#2853c7,#86a6f5);--btn:light-dark(#2853c7,#3b5fbf);--hdr:light-dark(#2a56c9,#161c27);
+--lcd:#dbe5d1;--lcdink:#1f2a17;--panel:#272c36;--spark:#ffc94a;--warn:light-dark(#b3261e,#ff9b91);--good:light-dark(#1f7a3a,#8fdca6)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.6 "Plus Jakarta Sans",system-ui,sans-serif;overflow-x:clip;-webkit-font-smoothing:antialiased}
+.band{padding:clamp(20px,3.5vw,48px) max(4.5vw,16px)}
+.wrap{max-width:1180px;margin:0 auto}
+header.band{background:var(--hdr);color:#fff;padding-bottom:clamp(84px,9vw,120px)}
+.brandline{font-size:13px;font-weight:600;letter-spacing:.2px;opacity:.85;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.brandline svg{width:18px;height:18px}
+h1{font-size:clamp(25px,5.6vw,40px);line-height:1.15;margin:0 0 10px;text-wrap:balance;font-weight:800;max-width:22ch}
+header p{margin:0;max-width:58ch;opacity:.88}
+header .disc{font-size:12.5px;opacity:.7;margin-top:10px}
+h2{font-size:18px;margin:0;line-height:1.3;font-weight:700}
+.main{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px;margin-top:clamp(-100px,-8vw,-64px)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:clamp(18px,2.4vw,28px);box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06)}
+.step{display:flex;align-items:center;gap:10px;margin:0 0 14px}
+.step .n{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;background:var(--soft);color:var(--blue)}
+.step + .hint{margin:-8px 0 14px}
+.sec{padding-top:22px;margin-top:22px;border-top:1px solid var(--line)}
+.meter{position:sticky;top:16px;align-self:start;background:var(--panel);color:#fff;border-radius:22px;padding:18px;box-shadow:0 14px 34px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.08)}
+.meter .brand{display:flex;justify-content:space-between;font-size:13px;color:#c3c9d4;margin-bottom:12px}
+.lcd{background:linear-gradient(180deg,#e3ecda,var(--lcd));color:var(--lcdink);border-radius:14px;padding:16px 18px;box-shadow:inset 0 2px 6px rgba(0,0,0,.18)}
+.lcd .big{font:700 clamp(40px,10vw,56px)/1 "Chakra Petch",monospace;letter-spacing:.5px;white-space:nowrap}
+.lcd .unit{font-size:15px;font-weight:600}
+.lcd .rp{font:700 clamp(26px,6.5vw,34px)/1.15 "Chakra Petch",monospace;margin-top:8px;white-space:nowrap}
+.lcd small{display:block;font-size:12.5px;opacity:.72;margin-top:2px}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.mrow div{background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;font-size:12.5px;color:#c3c9d4}
+.mrow b{display:block;font-size:16px;color:#fff;line-height:1.35;margin-top:2px}
+.load{margin-top:14px;font-size:13px;color:#c3c9d4}
+.bar{height:8px;background:rgba(255,255,255,.1);border-radius:6px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:#9bd0a6;border-radius:6px;transition:width .3s}
+.load.mid .bar i{background:var(--spark)}.load.over .bar i{background:#ff7d70}.load.over b{color:#ffb4ab}
+label{font-size:13.5px;font-weight:600;display:block;margin-bottom:6px}
+select,input{font:inherit;font-size:16px;color:var(--ink);background:var(--soft);border:1px solid transparent;border-radius:12px;padding:10px 12px;min-height:46px;width:100%;transition:border-color .15s,background .15s}
+select:hover,input:hover{border-color:var(--line)}
+select:focus,input:focus{outline:0;border-color:var(--blue);background:var(--card);box-shadow:0 0 0 3px light-dark(rgba(40,83,199,.15),rgba(134,166,245,.18))}
+button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.set{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.3fr) minmax(0,.8fr);gap:12px;margin-bottom:14px}
+.hint{font-size:13px;color:var(--mute);margin-top:6px;line-height:1.55}
+.idbox{margin-bottom:16px}.idbox input{letter-spacing:.5px}
+.idinfo{font-size:14px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--soft)}.idinfo:empty{display:none}
+.idinfo .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.idinfo button{min-height:40px}.idinfo button.link{border:0;background:none;color:var(--blue);text-decoration:underline;padding:0 6px}.ok{color:var(--good);font-weight:600}.up3{color:var(--mute);font-size:12.5px;font-weight:400;white-space:nowrap}
+.pbjt{padding:12px 14px;border-radius:12px;background:var(--soft);font-size:14px}
+.pbjt b{white-space:nowrap}.pbjt .src{color:var(--mute);font-size:12.5px}
+.pbjt summary{cursor:pointer;font-weight:600;color:var(--blue);margin-top:6px;min-height:32px;display:flex;align-items:center;font-size:13.5px}
+.list{display:grid;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.item{border-bottom:1px solid var(--line)}.item:last-child{border-bottom:0}.item.open{background:var(--soft)}
+.sum{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) auto 18px;gap:2px 10px;align-items:center;width:100%;min-height:58px;padding:10px 14px}
+.sum:hover{background:var(--soft)}.sum:focus-visible{outline:3px solid var(--blue);outline-offset:-3px}
+.sum .sn{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sum .sn:empty::before{content:"Alat lain";color:var(--mute)}
+.sum .meta{grid-column:1;font-size:12.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum b{grid-row:1/3;grid-column:2;white-space:nowrap;font-size:15px;font-weight:700}.sum .chev{grid-row:1/3;grid-column:3;color:var(--mute);transition:transform .2s;font-size:13px}
+.item.open .chev{transform:rotate(180deg)}
+.ed{display:grid;grid-template-columns:minmax(0,2.2fr) repeat(3,minmax(0,.9fr)) 46px;gap:8px;align-items:end;padding:2px 14px 14px}.ed[hidden]{display:none}
+.ed input{background:var(--card);border-color:var(--line)}
+.item label{font-size:12px;font-weight:600;color:var(--mute);margin-bottom:3px}
+button{font:inherit;font-weight:600;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;padding:0 14px}
+button.del{padding:0;font-size:20px;color:var(--mute);min-height:46px}button.del:hover{color:var(--warn);border-color:var(--warn)}
+button.pri{background:var(--btn);color:#fff;border-color:var(--btn)}
+.srch{position:relative}.srch input{padding-inline-start:40px;background:var(--soft) no-repeat 13px 50%/18px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E")}
+.srch input:focus{background-color:var(--card)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.saran{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 36px rgba(0,0,0,.16);max-height:min(360px,55vh);overflow-y:auto}
+.saran button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;gap:10px;width:100%;padding:11px 14px;min-height:48px;cursor:pointer;border-bottom:1px solid var(--line)}
+.saran button:last-child{border-bottom:0}.saran button:hover,.saran button.act{background:var(--soft)}
+.saran small{color:var(--mute);white-space:nowrap;font-size:12.5px;align-self:center}.saran .grp{padding:7px 14px;font-size:12px;color:var(--mute);background:var(--soft)}
+.saran .other{color:var(--blue);font-weight:600}
+button.link{all:unset;cursor:pointer;color:var(--blue);text-decoration:underline;text-underline-offset:2px;font-size:inherit}
+.empty{padding:22px 16px;text-align:center;color:var(--mute);font-size:14px}
+.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;margin:0 0 18px;background:var(--soft);border-radius:14px}.tabs::-webkit-scrollbar{display:none}
+.tabs button{border:0;background:none;color:var(--mute);border-radius:10px;min-height:40px;padding:0 14px;font-size:14px;white-space:nowrap;position:relative}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.tabs button.dot::after{content:"";position:absolute;top:8px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--spark)}.tabs button.dot.bad::after{background:#ff7d70}
+.pane[hidden]{display:none}.pane{max-width:720px}
+.rank div{margin-bottom:12px;font-size:14.5px}
+.rank .row{display:flex;justify-content:space-between;gap:8px}.rank .row span:last-child{white-space:nowrap;font-weight:600}
+.rank .b{height:6px;background:var(--soft);border-radius:5px;margin-top:6px;overflow:hidden}.rank .b i{display:block;height:100%;background:var(--blue);opacity:.75;border-radius:5px}
+.tips{padding-left:20px;margin:0}.tips li{margin-bottom:12px;font-size:15px}.tips li::marker{color:var(--blue)}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{font-size:12.5px;color:var(--mute);font-weight:600}
+th,td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}
+td.n,th.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.daya .st{display:inline-block;font-weight:700;font-size:14px;padding:5px 12px;border-radius:99px;margin-bottom:12px}.st.ok{background:light-dark(#e3f4e8,#173a24);color:var(--good)}.st.mid{background:light-dark(#fff3d1,#3d3214);color:light-dark(#8a5a00,#ffd36b)}.st.bad{background:light-dark(#fde4e1,#45201d);color:var(--warn)}
+.daya p{margin:0 0 12px;max-width:65ch}.rows{list-style:none;padding:0;margin:0 0 12px;max-width:560px}.rows li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14.5px}.rows li b{white-space:nowrap;font-variant-numeric:tabular-nums}
+.notes{margin:8px 0 0;padding-left:20px;font-size:13px;color:var(--mute);max-width:80ch}.notes li{margin-bottom:4px}
+.note{font-size:13px;color:var(--mute);max-width:80ch}
+@media(max-width:900px){.main{grid-template-columns:minmax(0,1fr)}.meter{position:static;order:-1}}
+@media(max-width:600px){.set{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.set .g{grid-column:1/-1}
+.ed{grid-template-columns:repeat(3,minmax(0,1fr)) 46px}.ed .nm{grid-column:1/-1}.tabs button{padding:0 6px}}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px max(4.5vw,16px) calc(10px + env(safe-area-inset-bottom));background:var(--panel);color:#fff;box-shadow:0 -6px 20px rgba(0,0,0,.18);transform:translateY(120%);transition:transform .25s;pointer-events:none}
+.dock.show{transform:none;pointer-events:auto}.dock .dk{display:grid;line-height:1.2}.dock small{font-size:12px;color:#c3c9d4}
+.dock b{font:700 22px/1.15 "Chakra Petch",monospace;color:var(--lcd);white-space:nowrap}.dock span{font-size:12px;color:#c3c9d4;white-space:nowrap}.dock span.warn{color:#ffb4ab}
+.dock button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;background:var(--spark);color:#1f2a17;border:0;font-weight:700;white-space:nowrap}
+@media(min-width:901px){.dock{display:none}}@media(max-width:900px){body{padding-bottom:84px}}
+@media(max-width:400px){.sum{padding:10px 12px;grid-template-columns:minmax(0,1fr) auto 14px}.sum .sn{grid-column:1/3;white-space:normal}.sum .meta{grid-row:2}.sum b{grid-row:2;grid-column:2;font-size:14.5px}.sum .chev{grid-row:1/3}.set{grid-template-columns:minmax(0,1.7fr) minmax(0,1fr)}.ed{padding:2px 12px 12px}.lcd{padding:14px}.mrow b{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.bar i,.dock,select,input{transition:none}}
+</style>
+</head>
+<body>
+<header class="band"><div class="wrap">
+<p class="brandline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Hitung Listrik Rumah</p>
+<h1>Berapa tagihan listrik rumahmu bulan ini?</h1>
+<p>Isi alat listrik di rumah dan berapa lama dipakai. Perkiraan kWh, rupiah, dan token langsung muncul.</p>
+<p class="disc">Alat hitung independen, bukan aplikasi atau layanan resmi PLN.</p>
+</div></header>
+
+<div class="band" style="padding-top:0"><div class="wrap main">
+<section class="card">
+  <div class="step"><span class="n">1</span><h2>Data rumah</h2></div>
+  <div class="idbox">
+    <label for="idpel">ID pelanggan <span class="hint" style="font-weight:400">(opsional, 12 digit di struk atau tagihan)</span></label>
+    <input id="idpel" inputmode="numeric" maxlength="14" placeholder="Mis. 53873xxxxxxx" autocomplete="off">
+    <div id="idInfo" class="idinfo" aria-live="polite"></div>
+    <div class="hint">Hanya 5 digit awal (kode unit) yang dicocokkan, di perangkatmu sendiri. ID tidak disimpan atau dikirim ke mana pun.</div>
+  </div>
+  <div class="set">
+    <div class="g"><label for="gol">Daya listrik rumah</label><select id="gol"></select></div>
+    <div><label for="kota">Kota/kabupaten</label><input id="kota" list="kotaList" placeholder="Ketik, mis. Depok" autocomplete="off"><datalist id="kotaList"></datalist></div>
+    <div><label for="hari">Hari/bulan</label><input id="hari" type="number" min="1" max="31" inputmode="numeric"></div>
+  </div>
+  <div class="pbjt" id="pbjtBox">
+    <div id="pbjtInfo"></div>
+    <details id="struk"><summary>Daerahmu belum ada? Hitung dari struk token</summary>
+      <p class="hint" style="margin:8px 0">Lihat struk token terakhir, lalu salin dua angka ini:</p>
+      <div class="set" style="margin-bottom:8px">
+        <div><label for="stroom">Rp Stroom/Token</label><input id="stroom" type="number" min="0" inputmode="numeric" placeholder="192307"></div>
+        <div><label for="pbjtRp">PBJT-TL / PPJ (Rp)</label><input id="pbjtRp" type="number" min="0" inputmode="numeric" placeholder="7693"></div>
+        <div><label for="ppj">Atau isi % langsung</label><input id="ppj" type="number" min="0" max="10" step="0.1" inputmode="decimal"></div>
+      </div>
+    </details>
+  </div>
+  <div class="sec">
+  <div class="step"><span class="n">2</span><h2>Alat listrik di rumah</h2></div>
+  <div class="srch">
+    <label for="cari" class="sr">Cari alat listrik</label>
+    <input id="cari" type="search" autocomplete="off" enterkeyhint="done" placeholder="Ketik nama alat, mis. kulkas, rice cooker" aria-controls="saran" aria-expanded="false">
+    <div id="saran" class="saran" role="listbox" hidden></div>
+  </div>
+  <div id="addMsg" class="hint" aria-live="polite" style="min-height:20px;margin:6px 0 6px"></div>
+  <div class="list" id="list"></div>
+  <p class="hint" style="margin-top:10px">Ketuk alat untuk mengubah watt, jumlah, atau jam pakainya. Watt ada di stiker belakang alat atau di kardusnya.<br><button class="link" id="resetBtn">Isi contoh rumah tangga</button> · <button class="link" id="clearBtn">Kosongkan</button></p>
+  </div>
+</section>
+
+<aside class="meter" aria-live="polite">
+  <div class="brand"><span>Perkiraan per bulan</span><span id="golLbl"></span></div>
+  <div class="lcd">
+    <span class="big" id="kwh">0</span> <span class="unit">kWh</span>
+    <div class="rp" id="rp">Rp0</div>
+    <small id="rpNote"></small>
+  </div>
+  <div class="mrow">
+    <div>Per hari<b id="perDay"></b></div>
+    <div>Token disarankan<b id="tokenSug"></b></div>
+  </div>
+  <div class="load" id="load"><span>Perkiraan beban puncak: <b id="loadTxt"></b></span><div class="bar"><i id="loadBar"></i></div></div>
+</aside>
+</div></div>
+
+<section class="band" style="padding-top:0"><div class="wrap card">
+  <div class="step"><span class="n">3</span><h2>Hasil dan saran</h2></div>
+  <div class="tabs" role="tablist" aria-label="Hasil">
+    <button role="tab" id="t-rank" aria-controls="p-rank" aria-selected="true">Boros</button>
+    <button role="tab" id="t-tips" aria-controls="p-tips" aria-selected="false" tabindex="-1">Hemat</button>
+    <button role="tab" id="t-tok" aria-controls="p-tok" aria-selected="false" tabindex="-1">Token</button>
+    <button role="tab" id="t-daya" aria-controls="p-daya" aria-selected="false" tabindex="-1">Daya</button>
+  </div>
+  <div class="pane rank" id="p-rank" role="tabpanel" aria-labelledby="t-rank"><p class="note" style="margin:0 0 12px">Alat dengan biaya terbesar per bulan.</p><div id="rank"></div></div>
+  <div class="pane" id="p-tips" role="tabpanel" aria-labelledby="t-tips" hidden><ul class="tips" id="tips"></ul></div>
+  <div class="pane" id="p-tok" role="tabpanel" aria-labelledby="t-tok" hidden><p class="note" style="margin:0 0 8px">Berapa kWh yang didapat dan kira-kira tahan berapa hari dengan pemakaianmu.</p>
+    <table><thead><tr><th>Token</th><th class="n">Dapat ±kWh</th><th class="n">Tahan ±</th></tr></thead><tbody id="tok"></tbody></table>
+    <p class="note" style="margin-top:10px">Belum termasuk biaya admin tiap aplikasi atau bank.</p>
+  </div>
+  <div class="pane daya" id="p-daya" role="tabpanel" aria-labelledby="t-daya" hidden><div id="dayaBox"></div></div>
+</div></section>
+
+<section class="band" style="padding-top:0"><div class="wrap">
+  <h3 style="font-size:14px;margin:0;color:var(--mute)">Catatan</h3>
+  <ol class="notes">
+    <li>Tarif PLN Oktober–Desember 2026 (tidak berubah dari triwulan sebelumnya). Tarif subsidi hanya untuk pelanggan yang berhak.</li>
+    <li>Pajak daerah (PBJT) diambil dari Perda tiap daerah. Angka pastinya ada di struk token.</li>
+    <li>Belum termasuk biaya admin, materai, rekening minimum pascabayar, dan biaya tambah daya.</li>
+    <li>Pembagian ULP ke kota/kabupaten adalah perkiraan.</li>
+    <li>Bukan aplikasi resmi PLN. Untuk tagihan dan layanan resmi, gunakan PLN Mobile.</li>
+  </ol>
+</div></section>
+
+<div id="dock" class="dock" aria-live="polite">
+  <div class="dk"><small>Perkiraan per bulan</small><b id="dockRp">Rp0</b><span id="dockSub"></span></div>
+  <button id="dockBtn" type="button">Lihat rincian ↑</button>
+</div>
+<script>
+{
+const GOL=[
+ {id:"450s",n:"450 VA (subsidi)",va:450,t:415},
+ {id:"900s",n:"900 VA (subsidi)",va:900,t:605},
+ {id:"900",n:"900 VA (RTM, nonsubsidi)",va:900,t:1352},
+ {id:"1300",n:"1.300 VA",va:1300,t:1444.70},
+ {id:"2200",n:"2.200 VA",va:2200,t:1444.70},
+ {id:"3500",n:"3.500 VA",va:3500,t:1699.53},
+ {id:"4400",n:"4.400 VA",va:4400,t:1699.53},
+ {id:"5500",n:"5.500 VA",va:5500,t:1699.53},
+ {id:"6600",n:"6.600 VA ke atas",va:6600,t:1699.53}];
+// [nama, watt, jumlah, jam/hari, kata kunci] — angka tipikal, pengguna bisa ubah
+const CAT=[
+ ["Lampu LED 5 W",5,4,10,"bohlam"],["Lampu LED 9 W",9,6,10,"bohlam"],["Lampu LED 12 W",12,4,10,"bohlam"],["Lampu LED 18 W",18,2,10,"bohlam"],
+ ["Lampu neon TL 36 W",36,2,10,"tl tube"],["Lampu pijar 40 W",40,1,10,"bohlam lama"],["Lampu sorot / taman 30 W",30,1,12,"outdoor halaman"],
+ ["Kipas angin meja",35,1,8,"kipas"],["Kipas angin berdiri",45,1,8,"kipas standing"],["Kipas angin dinding",45,1,8,"kipas"],["Kipas angin plafon",70,1,8,"kipas gantung ceiling"],["Exhaust fan",25,1,6,"kipas hisap"],
+ ["AC 1/2 PK",400,1,8,"ac pendingin"],["AC 3/4 PK",600,1,8,"ac pendingin"],["AC 1 PK",800,1,8,"ac pendingin"],["AC 1,5 PK",1200,1,8,"ac pendingin"],["AC 2 PK",1600,1,8,"ac pendingin"],
+ ["AC inverter 1/2 PK (rata-rata)",250,1,8,"ac pendingin"],["AC inverter 1 PK (rata-rata)",500,1,8,"ac pendingin"],["Air cooler",80,1,8,"ac kipas air"],
+ ["Kulkas 1 pintu",90,1,24,"lemari es refrigerator",0.45],["Kulkas 2 pintu",130,1,24,"lemari es refrigerator",0.45],["Kulkas 2 pintu inverter",90,1,24,"lemari es refrigerator",0.4],
+ ["Kulkas side by side",200,1,24,"lemari es refrigerator",0.45],["Kulkas mini / portable",60,1,24,"lemari es refrigerator",0.5],["Freezer box (chest freezer)",150,1,24,"kulkas pembeku es batu frozen",0.5],
+ ["Freezer es krim",200,1,24,"kulkas es krim showcase",0.55],["Showcase minuman",250,1,24,"kulkas pendingin warung",0.6],
+ ["Rice cooker – memasak",350,1,1,"magic com magicom penanak nasi"],["Rice cooker – menghangatkan",40,1,8,"magic com magicom penanak nasi"],["Rice cooker mini – memasak",200,1,1,"magic com magicom penanak nasi"],["Rice cooker digital – memasak",600,1,1,"magic com magicom penanak nasi"],
+ ["Dispenser panas-dingin",350,1,4,"galon air minum"],["Dispenser panas saja",300,1,3,"galon air minum"],["Dispenser galon bawah",450,1,4,"galon air minum"],
+ ["Microwave",800,1,0.25,"oven"],["Oven listrik",600,1,0.5,"panggang kue"],["Air fryer",1300,1,0.3,"penggoreng"],["Kompor induksi",1200,1,1,"kompor listrik"],["Kompor listrik",1000,1,1,"kompor"],
+ ["Ketel / teko listrik",1500,1,0.2,"pemanas air kettle"],["Blender",300,1,0.1,"juicer"],["Mixer",200,1,0.2,"adonan"],["Toaster",700,1,0.1,"pemanggang roti"],["Coffee maker",600,1,0.2,"kopi"],["Chopper",200,1,0.1,"penggiling"],
+ ["Pompa air 125 W",125,1,1.5,"sanyo shimizu sumur"],["Pompa air 250 W",250,1,1.5,"sanyo shimizu sumur"],["Pompa air jet pump",350,1,1.5,"sumur dalam"],["Pompa booster",100,1,2,"tekanan air"],
+ ["Water heater listrik (tangki)",350,1,1,"pemanas air mandi"],["Water heater instan",3000,1,0.3,"pemanas air mandi"],
+ ["Mesin cuci 1 tabung",300,1,1,"laundry"],["Mesin cuci 2 tabung",350,1,1,"laundry"],["Mesin cuci front loading",500,1,1,"laundry"],["Pengering pakaian (dryer)",1200,1,0.5,"laundry"],
+ ["Setrika",350,1,0.5,"gosok"],["Setrika uap",1000,1,0.5,"gosok steam"],
+ ["TV LED 24 inci",40,1,5,"televisi"],["TV LED 32 inci",60,1,5,"televisi"],["TV LED 43 inci",80,1,5,"televisi smart"],["TV LED 55 inci",120,1,5,"televisi smart"],["TV tabung 21 inci",70,1,5,"televisi crt"],
+ ["Set top box / STB",10,1,5,"tv digital"],["Speaker aktif",50,1,2,"sound audio"],["Konsol game",150,1,2,"playstation ps"],
+ ["Laptop",60,1,5,"komputer"],["PC desktop",250,1,5,"komputer"],["Monitor",25,1,5,"komputer layar"],["Printer",30,1,0.2,"cetak"],
+ ["Router WiFi",10,1,24,"internet modem"],["Modem / ONT",12,1,24,"internet indihome wifi"],["CCTV (DVR + 4 kamera)",40,1,24,"kamera keamanan"],
+ ["Charger HP biasa",10,1,3,"cas handphone"],["Charger HP fast charging",25,1,2,"cas handphone"],["Charger HP 45 W+",45,1,1.5,"cas handphone"],["Charger tablet",20,1,2,"cas ipad"],["Power bank (isi ulang)",15,1,2,"cas"],
+ ["Charger motor listrik",600,1,4,"ev sepeda"],["Charger sepeda listrik",250,1,4,"ev"],["Charger mobil listrik (portable)",2200,1,3,"ev"],
+ ["Hair dryer",800,1,0.1,"pengering rambut"],["Catokan rambut",50,1,0.2,"pelurus"],["Vacuum cleaner",600,1,0.3,"penyedot debu"],["Mesin jahit",100,1,1,"jahit"],
+ ["Pompa akuarium",5,1,24,"aerator ikan"],["Filter akuarium",10,1,24,"ikan"],["Lampu akuarium",10,1,10,"ikan"],["Bel / interkom",5,1,24,"pintu"]];
+const PRE=CAT;
+// PBJT Tenaga Listrik rumah tangga. f(va) -> persen. Sumber: Perda masing-masing daerah.
+const JKT=["DKI Jakarta",()=>2.4,"Perda Prov. DKI Jakarta 1/2024"];
+const DAERAH=[
+ ["Kota Depok",va=>va<=1000?3:va<=3500?4:7,"Perda Kota Depok 1/2024"],
+ JKT,["Jakarta Selatan",...JKT.slice(1)],["Jakarta Timur",...JKT.slice(1)],["Jakarta Barat",...JKT.slice(1)],["Jakarta Utara",...JKT.slice(1)],["Jakarta Pusat",...JKT.slice(1)],
+ ["Kota Bekasi",va=>va<=450?3:va<=900?5:va<=1300?7:va<=2200?8:va<=3500?8.5:9,"Perda Kota Bekasi (perubahan 2025)"],
+ ["Kabupaten Bogor",va=>va<=1300?3:va<=5500?5:6,"Perda Kab. Bogor 11/2023"],
+ ["Kota Bogor",va=>va<=450?3:va<=2200?5:10,"Perda Kota Bogor 11/2023"],
+ ["Kota Cilegon",()=>4,"Perda Kota Cilegon 1/2024"],
+ // Jawa Timur: rumah tangga kena tarif umum PBJT (khusus hanya industri 3% & listrik sendiri 1,5%)
+ ["Kota Surabaya",()=>10,"Perda Kota Surabaya 7/2023"],
+ ["Kota Malang",()=>10,"Perda Kota Malang 4/2023"],
+ ["Kabupaten Malang",()=>10,"Perda Kab. Malang 7/2023"],
+ ["Kabupaten Pasuruan",()=>10,"Perda Kab. Pasuruan 3/2023"],
+ ["Kota Pasuruan",()=>10,"Perda Kota Pasuruan 4/2023"],
+ ["Kabupaten Probolinggo",()=>10,"Perda Kab. Probolinggo 1/2024"],
+ ["Kabupaten Tulungagung",()=>10,"Perda Kab. Tulungagung 11/2023"],
+ ["Kabupaten Blitar",()=>10,"Perda Kab. Blitar 8/2023"],
+ ["Kota Kediri",()=>10,"Perda Kota Kediri 6/2023"],
+ ["Kabupaten Pacitan",()=>10,"Perda Kab. Pacitan 9/2023"],
+ ["Kabupaten Pamekasan",()=>10,"Perda Kab. Pamekasan 1/2024"],
+ ["Kabupaten Bondowoso",()=>10,"Perda Kab. Bondowoso 2/2026"],
+ ["Kabupaten Banyuwangi",()=>10,"Perda Kab. Banyuwangi 1/2024"],
+ ["Kabupaten Sidoarjo",()=>10,"Perda Kab. Sidoarjo 1/2024"],
+ // belum ada sumber yang terbaca; semua daerah Jatim yang dicek memakai 10% -> perkiraan
+ ["Kabupaten Kediri",()=>10,"perkiraan",true],
+ ["Kota Blitar",()=>10,"perkiraan",true],
+ ["Kota Madiun",()=>10,"perkiraan",true],
+ ["Kabupaten Madiun",()=>10,"perkiraan",true],
+ ["Kabupaten Magetan",()=>10,"perkiraan",true],
+ ["Kabupaten Ngawi",()=>10,"perkiraan",true],
+ ["Kabupaten Ponorogo",()=>10,"perkiraan",true],
+ ["Kabupaten Trenggalek",()=>10,"perkiraan",true],
+ ["Kabupaten Jombang",()=>10,"perkiraan",true],
+ ["Kabupaten Mojokerto",()=>10,"perkiraan",true],
+ ["Kota Mojokerto",()=>10,"perkiraan",true],
+ ["Kabupaten Nganjuk",()=>10,"perkiraan",true],
+ ["Kabupaten Bojonegoro",()=>10,"perkiraan",true],
+ ["Kabupaten Tuban",()=>10,"perkiraan",true],
+ ["Kabupaten Lamongan",()=>10,"perkiraan",true],
+ ["Kabupaten Jember",()=>10,"perkiraan",true],
+ ["Kabupaten Lumajang",()=>10,"perkiraan",true],
+ ["Kota Probolinggo",()=>10,"perkiraan",true],
+ ["Kabupaten Situbondo",()=>10,"perkiraan",true],
+ ["Kabupaten Bangkalan",()=>10,"perkiraan",true],
+ ["Kabupaten Sampang",()=>10,"perkiraan",true],
+ ["Kabupaten Sumenep",()=>10,"perkiraan",true],
+ ["Kota Batu",()=>10,"perkiraan",true],
+ ["Kabupaten Sukabumi",va=>va<=2200?7:va<=5500?8:9,"Perda Kab. Sukabumi 2/2025"],
+ ["Kabupaten Bandung",(va,G)=>G&&G.id==="900"?7:va<=900?6:va<=2200?8:9,"Perda Kab. Bandung 9/2025"],
+ ["Kabupaten Bandung Barat",va=>va<=900?4.5:6,"Perda Kab. Bandung Barat 1/2024"],
+ ["Kota Cimahi",()=>10,"Perda Kota Cimahi 8/2023 (tarif umum PBJT)"],
+ ["Kabupaten Bekasi",va=>va<=450?null:va<=1300?3:va<=2200?4:5,"Perda Kab. Bekasi 8/2023"],
+ ["Kabupaten Cianjur",()=>10,"Perda Kab. Cianjur 17/2023"],
+ ["Kabupaten Karawang",va=>va<=1000?3:va<=3500?4:5,"Perda Kab. Karawang 17/2023"],
+ ["Kabupaten Subang",()=>10,"Perda Kab. Subang 12/2023"],
+ ["Kabupaten Sumedang",va=>va<=450?5:va<=900?6:8,"Perda Kab. Sumedang 1/2024"],
+ ["Kabupaten Majalengka",()=>7,"Perda Kab. Majalengka 7/2023"],
+ ["Kabupaten Indramayu",()=>10,"Perda Kab. Indramayu 1/2024 (tarif umum PBJT)"],
+ ["Kota Cirebon",()=>5,"Perda Kota Cirebon 1/2024"],
+ ["Kabupaten Kuningan",va=>va<=900?7:va<=5500?8.5:10,"Perda Kab. Kuningan 1/2024"],
+ ["Kabupaten Garut",va=>va<=900?4:va<=1300?5:va<=2200?6:7,"Perda Kab. Garut 1/2025"],
+ ["Kota Tasikmalaya",()=>10,"Perda Kota Tasikmalaya 1/2024 (tarif umum PBJT)"],
+ ["Kabupaten Ciamis",()=>10,"Perda Kab. Ciamis 15/2023 (tarif umum PBJT)"],
+ ["Kabupaten Pangandaran",()=>10,"Perda Kab. Pangandaran 8/2023 (tarif umum PBJT)"],
+ ["Kota Sukabumi",()=>10,"Perda Kota Sukabumi 4/2023 (tarif umum PBJT)"],
+ ["Kota Tangerang",va=>va<=450?0:va<=900?3:va<=2200?4:va<=5500?5:6,"Perda Kota Tangerang 10/2023"],
+ ["Kota Tangerang Selatan",va=>va<=450?0:va<=1300?3:6,"Perda Kota Tangerang Selatan 10/2023"],
+ ["Kabupaten Tangerang",va=>va<=450?null:va<=900?3:va<=2200?4:va<=5500?5:6,"Perda Kab. Tangerang 1/2024"],
+ ["Kota Bandung",()=>8,"Perda Kota Bandung 1/2024"],
+ ["Kabupaten Lebak",()=>5,"Perda Kab. Lebak 8/2023"],
+ ["Kabupaten Gresik",()=>10,"BPPKAD Kab. Gresik"],
+ ["Kota Pekanbaru",va=>va<=3500?6:8,"Bapenda Kota Pekanbaru"]];
+const AMBIG=["bogor","bekasi","tangerang","bandung","cirebon","serang","semarang","malang","madiun","kediri","blitar","magelang","tegal","pekalongan","sukabumi","tasikmalaya","mojokerto","pasuruan","probolinggo","solok"];
+const low=s=>String(s||"").toLowerCase().replace(/\s+/g," ").trim().replace(/^kab\.?\s+/,"kabupaten ");
+const base=s=>low(s).replace(/^(kota|kabupaten|kab\.?|dki)\s+/,"");
+function findD(q){const n=low(q);if(n.length<3)return{};
+ const hit=DAERAH.find(d=>low(d[0])===n)||DAERAH.find(d=>low(d[0]).startsWith(n)&&n.length>=6);if(hit)return{d:hit};
+ const b=base(n),typedPrefix=b!==n;
+ if(!typedPrefix&&AMBIG.includes(b))return{ambig:b};
+ const bh=DAERAH.find(d=>base(d[0])===b);return bh&&!AMBIG.includes(b)?{d:bh}:{};}
+// 5 digit awal ID pelanggan = kode unit (ULP). Contoh awal; sisanya dari kontribusi pengguna.
+// [nama ULP, daerah utama, daerah alternatif (wilayah ULP melintasi batas)] — perkiraan, perlu verifikasi
+const KB="Kabupaten Bogor",KtB="Kota Bogor",KD="Kota Depok",KBd="Kota Bandung",KbBd="Kabupaten Bandung",KBB="Kabupaten Bandung Barat",KtBk="Kota Bekasi",KbBk="Kabupaten Bekasi",
+ CJ="Kabupaten Cianjur",GR="Kabupaten Garut",IM="Kabupaten Indramayu",KR="Kabupaten Karawang",SB="Kabupaten Subang",PW="Kabupaten Purwakarta",KSb="Kabupaten Sukabumi",
+ SM="Kabupaten Sumedang",MJ="Kabupaten Majalengka",KC="Kabupaten Cirebon",KN="Kabupaten Kuningan",KT="Kabupaten Tasikmalaya",CM="Kota Cimahi";
+const PREFIX={
+ "53551":["ULP Bandung Selatan",KBd],"53555":["ULP Bandung Barat",KBd],"53559":["ULP Bandung Utara",KBd],"53563":["ULP Bandung Timur",KBd],
+ "53567":["ULP Cijawura",KBd],"53571":["ULP Ujungberung",KBd,KbBd],"53575":["ULP Kopo",KBd,KbBd],"53577":["ULP Prima Priangan",null],
+ "53811":["ULP Cipayung",KB],"53821":["ULP Bogor Timur",KtB],"53825":["ULP Prima Pakuan",null],"53831":["ULP Bogor Kota",KtB],
+ "53841":["ULP Bogor Barat",KtB,KB],"53851":["ULP Leuwiliang",KB],"53853":["ULP Jasinga",KB],
+ "53711":["ULP Bekasi Kota",KtBk],"53731":["ULP Medan Satria",KtBk],"53732":["ULP Babelan",KbBk],"53741":["ULP Bantargebang",KtBk,KbBk],
+ "53742":["ULP Mustika Jaya",KtBk],"53771":["ULP Prima Bekasi",null],
+ "53661":["ULP Cianjur Kota",CJ],"53671":["ULP Cipanas",CJ],"53681":["ULP Mande",CJ],"53691":["ULP Tanggeung",CJ],"53695":["ULP Sukanagara",CJ],
+ "53701":["ULP Tambun",KbBk],"53702":["ULP Cibitung",KbBk],"53703":["ULP Cikarang Kota",KbBk],"53704":["ULP Lemahabang",KbBk],
+ "53581":["ULP Cimahi Kota",CM],"53585":["ULP Padalarang",KBB],"53589":["ULP Lembang",KBB],"53592":["ULP Cililin",KBB],"53595":["ULP Rajamandala",KBB],
+ "53598":["ULP Prima Cibabat",null],"53599":["ULP Cimahi Selatan",CM],
+ "53311":["ULP Cirebon Kota","Kota Cirebon",KC],"53321":["ULP Kuningan",KN],"53331":["ULP Sumber",KC],"53351":["ULP Ciledug",KC],"53371":["ULP Cilimus",KN],
+ "53871":["ULP Depok Kota",KD],"53872":["ULP Cibinong",KB],"53873":["ULP Sawangan",KD,KB],"53874":["ULP Cimanggis",KD],"53875":["ULP Bojonggede",KB,KD],
+ "53861":["ULP Citeureup",KB],"53865":["ULP Cileungsi",KB],"53867":["ULP Jonggol",KB],
+ "53271":["ULP Garut Kota",GR],"53276":["ULP Cikajang",GR],"53277":["ULP Pameungpeuk",GR],"53286":["ULP Cibatu",GR],"53293":["ULP Leles",GR],
+ "53401":["ULP Jatibarang",IM],"53402":["ULP Haurgeulis",IM],"53403":["ULP Indramayu Kota",IM],"53404":["ULP Cikedung",IM],
+ "53461":["ULP Cikampek",KR],"53468":["ULP Kosambi",KR],"53475":["ULP Karawang Kota",KR],"53476":["ULP Prima Karawang",null],"53482":["ULP Rengasdengklok",KR],
+ "53531":["ULP Majalaya",KbBd],"53532":["ULP Soreang",KbBd],"53533":["ULP Rancaekek",KbBd,SM],"53534":["ULP Banjaran",KbBd],"53535":["ULP Baleendah",KbBd],"53536":["ULP Prima Majalaya",null],
+ "53411":["ULP Pamanukan",SB],"53421":["ULP Pagaden",SB],"53425":["ULP Subang",SB],"53431":["ULP Plered",PW],"53444":["ULP Purwakarta Kota",PW],
+ "53611":["ULP Sukabumi Kota","Kota Sukabumi",KSb],"53621":["ULP Cibadak",KSb],"53631":["ULP Pelabuhan Ratu",KSb],"53641":["ULP Cikembar",KSb],"53651":["ULP Sukaraja",KSb],"53659":["ULP Cicurug",KSb],
+ "53511":["ULP Sumedang Kota",SM],"53517":["ULP Tanjung Sari",SM],"53521":["ULP Majalengka",MJ],"53527":["ULP Jatiwangi",MJ],
+ "53211":["ULP Pangandaran","Kabupaten Pangandaran"],"53221":["ULP Banjar","Kota Banjar"],"53231":["ULP Ciamis","Kabupaten Ciamis"],
+ "53241":["ULP Tasikmalaya Kota","Kota Tasikmalaya",KT],"53251":["ULP Rajapolah",KT],"53261":["ULP Singaparna",KT],"53265":["ULP Karangnunggal",KT],
+ "53941":["ULP Cilegon","Kota Cilegon"]};
+const UP3={};
+Object.entries({
+ "Bandung":"53551 53555 53559 53563 53567 53571 53575","Bogor":"53811 53821 53831 53841 53851 53853",
+ "Bekasi":"53711 53731 53732 53741 53742","Cianjur":"53661 53671 53681 53691 53695","Cikarang":"53701 53702 53703 53704",
+ "Cimahi":"53581 53585 53589 53592 53595 53599","Cirebon":"53311 53321 53331 53351 53371","Depok":"53871 53872 53873 53874 53875",
+ "Gunung Putri":"53861 53865 53867","Garut":"53271 53276 53277 53286 53293","Indramayu":"53401 53402 53403 53404",
+ "Karawang":"53461 53468 53475 53482","Majalaya":"53531 53532 53533 53534 53535","Purwakarta":"53411 53421 53425 53431 53444",
+ "Sukabumi":"53611 53621 53631 53641 53651 53659","Sumedang":"53511 53517 53521 53527","Tasikmalaya":"53211 53221 53231 53241 53251 53261 53265"
+}).forEach(([u,ks])=>ks.split(" ").forEach(k=>UP3[k]=u));
+// UID Jawa Timur: kode ULP 5 digit; pembagian ULP ke kota/kabupaten = perkiraan
+Object.assign(PREFIX,{"51670":["ULP Banyuwangi","Kabupaten Banyuwangi"],"51671":["ULP Rogojampi","Kabupaten Banyuwangi"],"51672":["ULP Muncar","Kabupaten Banyuwangi"],"51673":["ULP Genteng","Kabupaten Banyuwangi"],"51675":["ULP Jajag","Kabupaten Banyuwangi"],"51801":["ULP Bojonegoro","Kabupaten Bojonegoro"],"51802":["ULP Tuban","Kabupaten Tuban"],"51803":["ULP Lamongan","Kabupaten Lamongan"],"51804":["ULP Babat","Kabupaten Lamongan"],"51805":["ULP Padangan","Kabupaten Bojonegoro"],"51806":["ULP Brondong","Kabupaten Lamongan"],"51807":["ULP Jatirogo","Kabupaten Tuban"],"51808":["ULP Sumberrejo","Kabupaten Bojonegoro"],"51120":["ULP Gresik","Kabupaten Gresik"],"51121":["ULP Sedayu","Kabupaten Gresik"],"51122":["ULP Benjeng","Kabupaten Gresik"],"51123":["ULP Bawean","Kabupaten Gresik"],"51601":["ULP Jember Kota","Kabupaten Jember"],"51602":["ULP Lumajang","Kabupaten Lumajang"],"51603":["ULP Kalisat","Kabupaten Jember"],"51604":["ULP Rambi Puji","Kabupaten Jember"],"51605":["ULP Ambulu","Kabupaten Jember"],"51606":["ULP Klakah","Kabupaten Lumajang"],"51607":["ULP Tanggul","Kabupaten Jember"],"51608":["ULP Kencong","Kabupaten Jember"],"51609":["ULP Tempeh","Kabupaten Lumajang"],"51401":["ULP Kediri Utara","Kota Kediri","Kabupaten Kediri"],"51402":["ULP Blitar","Kota Blitar","Kabupaten Blitar"],"51403":["ULP Tulungagung","Kabupaten Tulungagung"],"51404":["ULP Ngunut","Kabupaten Tulungagung"],"51405":["ULP Srengat","Kabupaten Blitar"],"51406":["ULP Pare","Kabupaten Kediri"],"51408":["ULP Wlingi","Kabupaten Blitar"],"51409":["ULP Sutojayan","Kabupaten Blitar"],"51410":["ULP Kediri Selatan","Kota Kediri","Kabupaten Kediri"],"51411":["ULP Kediri Barat","Kota Kediri","Kabupaten Kediri"],"51412":["ULP Campur Darat","Kabupaten Tulungagung"],"51501":["ULP Madiun Kota","Kota Madiun","Kabupaten Madiun"],"51503":["ULP Magetan","Kabupaten Magetan"],"51504":["ULP Ngawi","Kabupaten Ngawi"],"51505":["ULP Maospati","Kabupaten Magetan"],"51507":["ULP Caruban","Kabupaten Madiun"],"51508":["ULP Dolopo","Kabupaten Madiun"],"51509":["ULP Mantingan","Kabupaten Ngawi"],"51301":["ULP Lawang","Kabupaten Malang"],"51302":["ULP Bululawang","Kabupaten Malang"],"51303":["ULP Batu","Kota Batu","Kabupaten Malang"],"51304":["ULP Singosari","Kabupaten Malang"],"51305":["ULP Kepanjen","Kabupaten Malang"],"51306":["ULP Tumpang","Kabupaten Malang"],"51307":["ULP Gondanglegi","Kabupaten Malang"],"51308":["ULP Dampit","Kabupaten Malang"],"51310":["ULP Sumber Pucung","Kabupaten Malang"],"51311":["ULP Dinoyo","Kota Malang","Kabupaten Malang"],"51312":["ULP Blimbing","Kota Malang","Kabupaten Malang"],"51313":["ULP Malang Kota","Kota Malang"],"51314":["ULP Kebonagung","Kota Malang","Kabupaten Malang"],"51450":["ULP Mojoagung","Kabupaten Jombang"],"51452":["ULP Mojokerto Utara","Kota Mojokerto","Kabupaten Mojokerto"],"51453":["ULP Jombang","Kabupaten Jombang"],"51454":["ULP Ngoro","Kabupaten Mojokerto"],"51455":["ULP Ploso","Kabupaten Jombang"],"51456":["ULP Mojosari","Kabupaten Mojokerto"],"51457":["ULP Pacet","Kabupaten Mojokerto"],"51458":["ULP Kertosono","Kabupaten Nganjuk"],"51459":["ULP Warujayeng","Kabupaten Nganjuk"],"51460":["ULP Nganjuk","Kabupaten Nganjuk"],"51700":["ULP Pamekasan","Kabupaten Pamekasan"],"51710":["ULP Sumenep","Kabupaten Sumenep"],"51715":["ULP Kepulauan Kangean","Kabupaten Sumenep"],"51720":["ULP Sampang","Kabupaten Sampang"],"51730":["ULP Bangkalan","Kabupaten Bangkalan"],"51740":["ULP Kamal","Kabupaten Bangkalan"],"51750":["ULP Ketapang","Kabupaten Sampang"],"51760":["ULP Blega","Kabupaten Bangkalan"],"51780":["ULP Waru","Kabupaten Pamekasan"],"51790":["ULP Ambunten","Kabupaten Sumenep"],"51350":["ULP Pasuruan Kota","Kota Pasuruan","Kabupaten Pasuruan"],"51351":["ULP Gondang Wetan","Kabupaten Pasuruan"],"51352":["ULP Grati","Kabupaten Pasuruan"],"51353":["ULP Bangil","Kabupaten Pasuruan"],"51354":["ULP Pandaan","Kabupaten Pasuruan"],"51355":["ULP Prigen","Kabupaten Pasuruan"],"51356":["ULP Probolinggo","Kota Probolinggo","Kabupaten Probolinggo"],"51357":["ULP Kraksaan","Kabupaten Probolinggo"],"51358":["ULP Sukorejo","Kabupaten Pasuruan"],"51540":["ULP Ponorogo","Kabupaten Ponorogo"],"51541":["ULP Balong","Kabupaten Ponorogo"],"51542":["ULP Pacitan","Kabupaten Pacitan"],"51543":["ULP Trenggalek","Kabupaten Trenggalek"],"51180":["ULP Sidoarjo Kota","Kabupaten Sidoarjo"],"51181":["ULP Krian","Kabupaten Sidoarjo"],"51182":["ULP Porong","Kabupaten Sidoarjo"],"51650":["ULP Panarukan","Kabupaten Situbondo"],"51651":["ULP Besuki","Kabupaten Situbondo"],"51652":["ULP Asembagus","Kabupaten Situbondo"],"51653":["ULP Bondowoso","Kabupaten Bondowoso"],"51654":["ULP Wonosari","Kabupaten Bondowoso"],"51161":["ULP Taman","Kabupaten Sidoarjo","Kota Surabaya"],"51162":["ULP Karang Pilang","Kota Surabaya"],"51163":["ULP Menganti","Kabupaten Gresik"],"51140":["ULP Darmo Permai","Kota Surabaya"],"51141":["ULP Dukuh Kupang","Kota Surabaya"],"51142":["ULP Ngagel","Kota Surabaya"],"51143":["ULP Rungkut","Kota Surabaya"],"51146":["ULP Gedangan","Kabupaten Sidoarjo"],"51101":["ULP Indrapura","Kota Surabaya"],"51102":["ULP Ploso","Kota Surabaya"],"51103":["ULP Tandes","Kota Surabaya"],"51104":["ULP Perak","Kota Surabaya"],"51105":["ULP Kenjeran","Kota Surabaya"],"51106":["ULP Embong Wungu","Kota Surabaya"]});
+Object.assign(UP3,{"51670":"Banyuwangi","51671":"Banyuwangi","51672":"Banyuwangi","51673":"Banyuwangi","51675":"Banyuwangi","51801":"Bojonegoro","51802":"Bojonegoro","51803":"Bojonegoro","51804":"Bojonegoro","51805":"Bojonegoro","51806":"Bojonegoro","51807":"Bojonegoro","51808":"Bojonegoro","51120":"Gresik","51121":"Gresik","51122":"Gresik","51123":"Gresik","51601":"Jember","51602":"Jember","51603":"Jember","51604":"Jember","51605":"Jember","51606":"Jember","51607":"Jember","51608":"Jember","51609":"Jember","51401":"Kediri","51402":"Kediri","51403":"Kediri","51404":"Kediri","51405":"Kediri","51406":"Kediri","51408":"Kediri","51409":"Kediri","51410":"Kediri","51411":"Kediri","51412":"Kediri","51501":"Madiun","51503":"Madiun","51504":"Madiun","51505":"Madiun","51507":"Madiun","51508":"Madiun","51509":"Madiun","51301":"Malang","51302":"Malang","51303":"Malang","51304":"Malang","51305":"Malang","51306":"Malang","51307":"Malang","51308":"Malang","51310":"Malang","51311":"Malang","51312":"Malang","51313":"Malang","51314":"Malang","51450":"Mojokerto","51452":"Mojokerto","51453":"Mojokerto","51454":"Mojokerto","51455":"Mojokerto","51456":"Mojokerto","51457":"Mojokerto","51458":"Mojokerto","51459":"Mojokerto","51460":"Mojokerto","51700":"Pamekasan","51710":"Pamekasan","51715":"Pamekasan","51720":"Pamekasan","51730":"Pamekasan","51740":"Pamekasan","51750":"Pamekasan","51760":"Pamekasan","51780":"Pamekasan","51790":"Pamekasan","51350":"Pasuruan","51351":"Pasuruan","51352":"Pasuruan","51353":"Pasuruan","51354":"Pasuruan","51355":"Pasuruan","51356":"Pasuruan","51357":"Pasuruan","51358":"Pasuruan","51540":"Ponorogo","51541":"Ponorogo","51542":"Ponorogo","51543":"Ponorogo","51180":"Sidoarjo","51181":"Sidoarjo","51182":"Sidoarjo","51650":"Situbondo","51651":"Situbondo","51652":"Situbondo","51653":"Situbondo","51654":"Situbondo","51161":"Surabaya Barat","51162":"Surabaya Barat","51163":"Surabaya Barat","51140":"Surabaya Selatan","51141":"Surabaya Selatan","51142":"Surabaya Selatan","51143":"Surabaya Selatan","51146":"Surabaya Selatan","51101":"Surabaya Utara","51102":"Surabaya Utara","51103":"Surabaya Utara","51104":"Surabaya Utara","51105":"Surabaya Utara","51106":"Surabaya Utara"});
+// UID Jakarta Raya: UP3 langsung melayani pelanggan (tanpa ULP); dicocokkan dari 4 digit awal kode unit
+const UP3_4={"5436":["Serpong","Kota Tangerang Selatan","Kabupaten Tangerang"],"5472":["Ciracas","DKI Jakarta"]};
+const up3Guess=p=>{const sib=Object.keys(PREFIX).filter(k=>k.slice(0,4)===p.slice(0,4)&&UP3[k]);if(!sib.length)return null;const u=new Set(sib.map(k=>UP3[k]));if(u.size!==1)return null;const c={};sib.forEach(k=>PREFIX[k].slice(1).forEach((v,i)=>{if(v)c[v]=(c[v]||0)+(i?1:2)}));const o=Object.keys(c).sort((x,y)=>c[y]-c[x]);return o.length?[`UP3 ${[...u][0]}`,o[0],o[1]]:null};
+const unitOf=p=>PREFIX[p]||(UP3_4[p.slice(0,4)]?[`UP3 ${UP3_4[p.slice(0,4)][0]}`,UP3_4[p.slice(0,4)][1],UP3_4[p.slice(0,4)][2]]:up3Guess(p));
+const unitLbl=p=>{const k=unitOf(p);if(!k)return"";return esc(k[0])+(PREFIX[p]&&UP3[p]?` <span class="up3">· UP3 ${UP3[p]}</span>`:"")};
+let pendingPrefix=null;
+const SAMPLE=["Lampu LED 9 W","Kulkas 1 pintu","AC 1/2 PK","TV LED 32 inci","Rice cooker – memasak","Rice cooker – menghangatkan","Mesin cuci 1 tabung","Setrika","Pompa air 125 W","Kipas angin berdiri","Router WiFi","Charger HP biasa"];
+const fromCat=c=>({n:c[0],w:c[1],q:c[2],h:c[3],...(c[5]?{d:c[5]}:{})});
+const sampleItems=()=>SAMPLE.map(n=>fromCat(CAT.find(c=>c[0]===n)));
+const $=id=>document.getElementById(id);
+const rp=x=>"Rp"+Math.round(x).toLocaleString("id-ID");
+const num=(x,d=0)=>x.toLocaleString("id-ID",{maximumFractionDigits:d,minimumFractionDigits:0});
+let S;
+const fresh=()=>({gol:"1300",kota:"Kota Depok",ppj:0,hari:30,items:[]});
+try{S=JSON.parse(localStorage.getItem("hitungListrik2"))}catch(e){}
+// versi lama otomatis mengisi contoh: pertahankan pengaturan, buang daftar alatnya
+if(!S){try{const o=JSON.parse(localStorage.getItem("hitungListrik"));if(o){S={...fresh(),gol:o.gol||"1300",kota:o.kota||"",ppj:o.ppj||0,hari:o.hari||30,learned:o.learned};localStorage.removeItem("hitungListrik")}}catch(e){}}
+if(!S||!Array.isArray(S.items))S=fresh();
+S.items.forEach(it=>{if(/kompresor ±10 jam/.test(it.n)){it.n=it.n.replace(/ \(kompresor ±10 jam\)/,"");it.h=24;it.d=0.45}});
+const save=()=>{try{localStorage.setItem("hitungListrik2",JSON.stringify(S))}catch(e){}};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+$("gol").innerHTML=GOL.map(g=>`<option value="${g.id}">${g.n} · Rp${num(g.t,2)}/kWh</option>`).join("");
+
+const kwhOf=it=>it.w*it.q*it.h*(it.d||1)*S.hari/1000;
+const g=()=>GOL.find(x=>x.id===S.gol)||GOL[3];
+const rateFor=G=>{const r=findD(S.kota),v=r.d?r.d[1](G.va,G):null;if(r.d&&r.d[3]&&+S.ppj>0)return +S.ppj;return v!=null?v:(+S.ppj||0)};
+const tax=(G=g())=>1+rateFor(G)/100;
+$("kotaList").innerHTML=[...new Set([...DAERAH.map(d=>d[0]),...Object.values(PREFIX).flatMap(x=>x.slice(1)).filter(Boolean)])].sort().map(n=>`<option value="${n}">`).join("");
+function renderPbjt(){const G=g(),r=findD(S.kota),box=$("pbjtInfo");
+ if(r.d&&r.d[1](G.va,G)==null){box.innerHTML=`Tarif pajak <b>${esc(r.d[0])}</b> untuk ${G.n} belum ada di data. Pakai ${num(+S.ppj||0,1)}% sementara; isi dari struk token di bawah.`}
+ else if(r.d&&r.d[3]&&+S.ppj>0){box.innerHTML=`PBJT-TL di <b>${esc(r.d[0])}</b>: <b>${num(+S.ppj,1)}%</b> <span class="src">· dari struk tokenmu</span>`}
+ else if(r.d&&r.d[3]){box.innerHTML=`PBJT-TL (dulu PPJ) di <b>${esc(r.d[0])}</b>: <b>±${num(r.d[1](G.va,G),1)}%</b> <span class="src">· perkiraan; tarif rinci belum kami temukan. Semua daerah Jatim yang sudah dicek memakai 10%. Cocokkan dengan struk token di bawah.</span>`}
+ else if(r.d){box.innerHTML=`PBJT-TL (dulu PPJ) di <b>${esc(r.d[0])}</b> untuk ${G.n.replace(/ \(.*\)/,"")}: <b>${num(r.d[1](G.va,G),1)}%</b> <span class="src">· ${r.d[2]}</span>`}
+ else if(r.ambig){box.innerHTML=`Maksudnya <b>Kota</b> atau <b>Kabupaten</b> ${esc(r.ambig.replace(/^./,c=>c.toUpperCase()))}? Tarifnya bisa beda.`}
+ else{box.innerHTML=S.kota?`<b>${esc(S.kota)}</b> belum ada di data. Pakai ${num(+S.ppj||0,1)}% sementara; isi dari struk token di bawah.`:`Ketik nama kota/kabupaten untuk mengisi pajak daerah otomatis.`}
+ if(document.activeElement!==$("ppj"))$("ppj").value=S.ppj||"";}
+
+let openI=-1;
+function renderList(){
+ const L=$("list");
+ if(!S.items.length){L.style.border="0";L.innerHTML='<div class="empty">Belum ada alat. Ketik nama alat di kolom pencarian di atas.</div>';return}
+ L.style.border="";
+ L.innerHTML=S.items.map((it,i)=>`<div class="item${i===openI?" open":""}" data-i="${i}">
+  <button class="sum" data-tog="${i}" aria-expanded="${i===openI}"><span class="sn" id="sn${i}">${esc(it.n)}</span><b id="cr${i}"></b><span class="chev" aria-hidden="true">▾</span><span class="meta" id="cm${i}"></span></button>
+  <div class="ed"${i===openI?"":" hidden"}>
+  <div class="nm"><label for="n${i}">Alat</label><input id="n${i}" data-k="n" value="${esc(it.n)}" placeholder="Nama alat, mis. Charger laptop"></div>
+  <div><label for="w${i}">Watt</label><input id="w${i}" data-k="w" type="number" min="0" inputmode="numeric" value="${it.w}"></div>
+  <div><label for="q${i}">Jumlah</label><input id="q${i}" data-k="q" type="number" min="0" inputmode="numeric" value="${it.q}"></div>
+  <div><label for="h${i}">Jam/hari</label><input id="h${i}" data-k="h" type="number" min="0" max="24" step="0.25" inputmode="decimal" value="${it.h}"></div>
+  <button class="del" data-del="${i}" aria-label="Hapus ${esc(it.n||"alat")}">×</button>${it.d?`<p class="hint" style="grid-column:1/-1;margin:0">Kompresor kulkas/freezer nyala-mati sendiri. Isi watt sesuai stiker dan jam nyala (biasanya 24); aplikasi menghitung kompresor bekerja ±${Math.round(it.d*100)}% dari waktu itu.</p>`:""}</div></div>`).join("");
+}
+// beban puncak realistis: alat 24 jam + alat kecil (≤200 W) + 2 unit alat besar terbesar
+function peakOf(){let on=0,small=0;const big=[],parts=[];
+ S.items.forEach(it=>{if(!(it.q>0&&it.w>0))return;const nm=it.n||"Alat lain";
+  if(it.d||it.h>=24)on+=it.w*it.q;else if(it.w<=200)small+=it.w*it.q;else{for(let j=0;j<Math.min(it.q,4);j++)big.push({n:nm,w:it.w})}});
+ big.sort((a,b)=>b.w-a.w);big.slice(0,2).forEach(b=>parts.push(b));
+ return{w:on+small+parts.reduce((a,b)=>a+b.w,0),on,small,big:parts,next:big[2]}}
+const DAYA=[450,900,1300,2200,3500,4400,5500,6600,7700,10600,11000,13200];
+const tarifVA=(va,G)=>va<=900&&G.va<=900?G.t:va<=900?1352:va<=2200?1444.70:1699.53;
+function renderDaya(G,T,kwh,all,P){const box=$("dayaBox");
+ if(!S.items.length){box.innerHTML='<p class="note">Tambahkan alat listrik dulu untuk mengecek apakah daya rumahmu cukup.</p>';return}
+ const pct=P.w/G.va*100,lvl=pct<=80?"ok":pct<=100?"mid":"bad";
+ const head={ok:"Daya cukup",mid:"Daya mepet, atur pemakaian",bad:"Rawan jeglek"}[lvl];
+ const bigTxt=P.big.length?P.big.map(b=>`${esc(b.n)} (${num(b.w)} W)`).join(" dan "):"";
+ const rows=[[`Alat menyala terus (kulkas, router)`,P.on],[`Alat kecil (lampu, TV, kipas)`,P.small],...P.big.map(b=>[esc(b.n),b.w])].filter(r=>r[1]>0);
+ let h=`<span class="st ${lvl}">${head}</span><p>Beban puncak <b>${num(P.w)} W</b> dari daya <b>${num(G.va)} VA</b> (${num(pct,0)}%)</p>
+ <ul class="rows">${rows.map(r=>`<li><span>${r[0]}</span><b>${num(r[1])} W</b></li>`).join("")}</ul>
+ <p class="note">${P.big.length?"Alat besar dihitung 2 yang paling mungkin menyala bersamaan. ":""}Kalau semua alat menyala sekaligus: ${num(all)} W.</p>`;
+ if(lvl!=="ok"){
+  if(P.big.length>=2)h+=`<p>Hindari menyalakan <b>${esc(P.big[0].n)}</b> dan <b>${esc(P.big[1].n)}</b> bersamaan${P.next?`, atau dengan ${esc(P.next.n)}`:""}.</p>`;
+  const rec=lvl==="bad"&&DAYA.find(v=>v>G.va&&P.w<=v*0.8);
+  if(rec){const tNew=tarifVA(rec,G),cNew=kwh*tNew*T,cNow=kwh*G.t*T;
+   h+=`<p>Kalau sering jeglek, pertimbangkan tambah daya ke <b>${num(rec)} VA</b>. `+(Math.abs(tNew-G.t)<0.01?`Tarif per kWh-nya sama (Rp${num(G.t,2)}), jadi tagihan bulanan untuk pemakaian yang sama tidak berubah.`:`Tarif per kWh-nya jadi Rp${num(tNew,2)}${G.va<=900&&G.t<1000?" (tidak lagi bersubsidi)":""}, sehingga tagihan untuk pemakaian yang sama jadi sekitar <b>${rp(cNew)}</b>/bulan (sekarang ${rp(cNow)}).`)+` Biaya penyambungan tambah daya dibayar sekali di awal; cek besarnya di PLN Mobile.</p>`}}
+ box.innerHTML=h}
+function calc(){
+ const G=g(),T=tax();
+ let kwh=0,peak=0;const P=peakOf();
+ S.items.forEach((it,i)=>{const k=kwhOf(it);kwh+=k;peak+=it.w*it.q;
+  const a=$("cm"+i),b=$("cr"+i),n=$("sn"+i);if(a){a.textContent=`${num(it.q)} × ${num(it.w)} W · ${it.d?`nyala ${num(it.h,2)} jam`:`${num(it.h,2)} jam/hari`}`;b.textContent=rp(k*G.t*T);n.textContent=it.n}});
+ const cost=kwh*G.t*T;
+ $("golLbl").textContent=G.n.replace(" (subsidi)"," subsidi");
+ $("kwh").textContent=num(kwh,0);
+ $("rp").textContent=rp(cost);
+ $("dockRp").textContent=rp(cost);{const pc=P.w/G.va*100,ds=$("dockSub");ds.textContent=`${num(kwh,0)} kWh`+(pc>100?" · rawan jeglek":pc>80?" · daya mepet":"");ds.className=pc>80?"warn":""}dockVis();
+ const R0=rateFor(G);renderPbjt();
+ $("rpNote").textContent=`Tarif Rp${num(G.t,2)}/kWh`+(R0>0?` + PBJT ${num(R0,1)}%`:" · belum termasuk pajak daerah");
+ $("perDay").textContent=rp(cost/S.hari);
+ // token suggestion
+ const N=[20000,50000,100000,200000,500000,1000000];let left=cost,pick=[];
+ for(const v of [...N].reverse()){while(left>=v*0.9&&v>=50000){pick.push(v);left-=v}}
+ if(left>0)pick.push(N.find(v=>v>=left)||20000);
+ const cnt={};pick.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+ $("tokenSug").textContent=cost<1?"–":Object.keys(cnt).sort((a,b)=>b-a).map(v=>`${cnt[v]>1?cnt[v]+"× ":""}${v>=1e6?"1jt":v/1000+"rb"}`).join(" + ");
+ // load
+ const pct=P.w/G.va*100;
+ $("loadTxt").textContent=`${num(P.w)} W dari ${num(G.va)} VA`+(pct>100?" – rawan jeglek":pct>80?" – mepet":"");
+ $("loadBar").style.width=Math.min(pct,100)+"%";
+ $("load").classList.toggle("over",pct>100);$("load").classList.toggle("mid",pct>80&&pct<=100);{const t=$("t-daya");t.classList.toggle("dot",pct>80&&S.items.length>0);t.classList.toggle("bad",pct>100)}
+ // ranking
+ const RM={};S.items.forEach(it=>{const n=it.n||"Alat lain",key=low(n),k=kwhOf(it);if(k<=0)return;const r=(RM[key]=RM[key]||{n,k:0,on:false,it:{w:0,q:1,h:0}});r.k+=k;r.it.w+=it.w*it.q*(it.d||1);r.it.h=Math.max(r.it.h,it.h);if(it.d||it.h>=24)r.on=true});
+ const R=Object.values(RM).sort((a,b)=>b.k-a.k);
+ const top=R[0]?R[0].k:1;
+ $("rank").innerHTML=R.length?R.slice(0,6).map(x=>`<div><div class="row"><span>${esc(x.n)}</span><span>${rp(x.k*G.t*T)}</span></div><div class="b"><i style="width:${x.k/top*100}%"></i></div></div>`).join(""):'<p class="note">Tambahkan alat dulu.</p>';
+ // tips
+ const tips=[];
+ R.filter(x=>!x.on&&x.it.h>=2).slice(0,2).forEach(x=>{{const s=x.it.w*x.it.q*S.hari/1000*G.t*T;tips.push(`Kurangi <b>${esc(x.n)}</b> 1 jam per hari: hemat sekitar <b>${rp(s)}</b>/bulan.`)}});
+ const ac=S.items.find(it=>/AC/i.test(it.n)&&it.q>0);
+ const fr=S.items.find(it=>it.d&&it.q>0);
+ if(fr)tips.push(`Kulkas: jangan sering buka pintu, set suhu tidak terlalu dingin, beri jarak ±10 cm dari dinding, dan cek karet pintu yang sudah getas. Kompresor jadi lebih jarang menyala.`);
+ if(ac)tips.push("Set AC di 24–26°C dan bersihkan filter tiap bulan; AC yang kotor kerja lebih berat.");
+ const disp=S.items.find(it=>/dispenser/i.test(it.n)&&it.q>0);
+ if(disp)tips.push(`Matikan pemanas dispenser saat tidur atau keluar rumah: bisa hemat ${rp(disp.w*disp.q*Math.min(disp.h,3)*S.hari/1000*G.t*T)}/bulan.`);
+ tips.push("Cabut charger dan matikan TV dari stopkontak, bukan hanya dari remote.");
+ $("tips").innerHTML=tips.slice(0,4).map(t=>`<li>${t}</li>`).join("");
+ // token table
+ $("tok").innerHTML=N.map(v=>{const k=v/(G.t*T);const d=kwh>0?k/(kwh/S.hari):0;
+  return `<tr><td>${v>=1e6?"Rp1 juta":rp(v)}</td><td class="n">${num(k,1)}</td><td class="n">${kwh>0?num(d,0)+" hari":"–"}</td></tr>`}).join("");
+ // golongan sim
+ renderDaya(G,T,kwh,peak,P);
+ save();
+}
+
+function idInfo(){const v=$("idpel").value.replace(/\D/g,""),box=$("idInfo");pendingPrefix=null;
+ if(!v){box.innerHTML="";return}
+ if(v.length<5){box.innerHTML='<span class="hint">Ketik minimal 5 digit awal.</span>';return}
+ const p=v.slice(0,5),known=unitOf(p),learned=(S.learned||{})[p];
+ if(known&&!known[1]&&!learned){box.innerHTML=`Kode unit <b>${p}</b>: ${esc(known[0])}, unit khusus pelanggan tegangan menengah/tinggi. Kalkulator ini untuk rumah tangga, jadi isi daerah secara manual di bawah.`;pendingPrefix=null;return}
+ const daerah=learned||(known&&known[1]),alt=!learned&&known&&known[2];
+ if(alt&&low(S.kota)===low(alt)){box.innerHTML=`<span class="ok">✓ Kode unit ${p}: ${unitLbl(p)} → ${esc(alt)}</span> <button class="link" data-act="no">Ganti</button>`;return}
+ if(daerah){
+  const asal=learned?(known?`${unitLbl(p)} <span class="up3">· sesuai koreksimu</span>`:"dari koreksimu"):unitLbl(p);
+  if(low(S.kota)===low(daerah)){box.innerHTML=`<span class="ok">✓ Kode unit ${p}: ${asal} → ${esc(daerah)}</span> <button class="link" data-act="no">Ganti</button>`;return}
+  box.innerHTML=`Kode unit <b>${p}</b>: ${asal}. Sepertinya rumahmu di <b>${esc(daerah)}</b>, benar?
+   ${alt?`<div class="hint">Sebagian wilayah ${PREFIX[p]?"ULP":"UP3"} ini masuk ${esc(alt)}. Pajaknya ikut alamat rumah.</div>`:""}
+   <div class="row"><button class="pri" data-act="yes" data-d="${esc(daerah)}">Benar, ${esc(daerah)}</button>${alt?`<button data-act="yes" data-d="${esc(alt)}">${esc(alt)}</button>`:""}<button data-act="no">${alt?"Lainnya":"Bukan, saya ganti"}</button></div>`;
+ }else{pendingPrefix=p;
+  box.innerHTML=`Kode unit <b>${p}</b> belum ada di data. Ketik kota/kabupatenmu di bawah; aplikasi akan mengingatnya untuk kode ini.`}}
+$("idpel").addEventListener("input",idInfo);
+$("idpel").addEventListener("change",()=>{const v=$("idpel").value.replace(/\D/g,"");
+ if(v.length===11)$("idInfo").insertAdjacentHTML("beforeend",'<div class="hint">Sepertinya ini nomor meter (11 digit). Kode unit hanya terbaca dari ID pelanggan 12 digit.</div>')});
+$("idInfo").addEventListener("click",e=>{const a=e.target.dataset.act;if(!a)return;
+ if(a==="yes"){S.kota=e.target.dataset.d;syncTop();calc();idInfo()}
+ else{pendingPrefix=$("idpel").value.replace(/\D/g,"").slice(0,5);
+  $("idInfo").innerHTML="Ketik kota/kabupaten yang benar di kolom bawah. Koreksimu diingat untuk kode ini.";$("kota").value="";$("kota").focus()}});
+$("kota").addEventListener("change",()=>{const r=findD(S.kota);
+ if(pendingPrefix&&r.d){S.learned=S.learned||{};S.learned[pendingPrefix]=r.d[0];save();idInfo()}});
+let meterSeen=true,typing=false;
+function dockVis(){$("dock").classList.toggle("show",!meterSeen&&!typing&&S.items.length>0)}
+try{new IntersectionObserver(es=>{meterSeen=es[0].isIntersecting;dockVis()},{threshold:0.15}).observe(document.querySelector(".meter"))}catch(e){}
+document.addEventListener("focusin",e=>{if(e.target.matches("input,select")){typing=true;dockVis()}});
+document.addEventListener("focusout",()=>{setTimeout(()=>{const a=document.activeElement;typing=!!(a&&a.matches&&a.matches("input,select"));dockVis()},150)});
+// keyboard ditutup dengan tombol kembali (fokus masih di kolom): tampilkan lagi bilahnya
+if(window.visualViewport){let full=visualViewport.height;visualViewport.addEventListener("resize",()=>{const h=visualViewport.height;if(h>=full-40){typing=false;dockVis()}full=Math.max(full,h)})}
+function goMeter(){const m=document.querySelector(".meter"),se=document.scrollingElement||document.documentElement;
+ if(document.activeElement&&document.activeElement!==document.body)document.activeElement.blur();typing=false;
+ const y=Math.max(0,m.getBoundingClientRect().top+(window.pageYOffset||se.scrollTop)-12);
+ const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+ try{window.scrollTo({top:y,behavior:reduce?"auto":"smooth"})}catch(e){window.scrollTo(0,y)}
+ clearTimeout(goMeter.t);goMeter.t=setTimeout(()=>{const r=m.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight*0.6){se.scrollTop=y;window.scrollTo(0,y)}},550)}
+$("dockBtn").addEventListener("click",e=>{e.preventDefault();goMeter()});
+{const tabs=[...document.querySelectorAll('[role=tab]')];
+ const sel=t=>{tabs.forEach(b=>{const on=b===t;b.setAttribute("aria-selected",on);b.tabIndex=on?0:-1;$(b.getAttribute("aria-controls")).hidden=!on})};
+ tabs.forEach((b,i)=>{b.addEventListener("click",()=>sel(b));b.addEventListener("keydown",e=>{if(e.key==="ArrowRight"||e.key==="ArrowLeft"){const n=tabs[(i+(e.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length];sel(n);n.focus()}})})}
+function syncTop(){$("gol").value=S.gol;$("kota").value=S.kota||"";$("hari").value=S.hari}
+$("gol").addEventListener("change",e=>{S.gol=e.target.value;calc()});
+$("kota").addEventListener("input",e=>{S.kota=e.target.value;calc()});
+$("ppj").addEventListener("input",e=>{S.ppj=Math.max(0,Math.min(10,+e.target.value||0));calc()});
+const fromStruk=()=>{const st=+$("stroom").value,p=+$("pbjtRp").value;if(st>0&&p>=0){S.ppj=Math.round(p/st*1000)/10;calc()}};
+$("stroom").addEventListener("input",fromStruk);$("pbjtRp").addEventListener("input",fromStruk);
+$("hari").addEventListener("input",e=>{S.hari=Math.max(1,Math.min(31,+e.target.value||30));calc()});
+$("list").addEventListener("input",e=>{const box=e.target.closest(".item");if(!box)return;const it=S.items[+box.dataset.i],k=e.target.dataset.k;
+ it[k]=k==="n"?e.target.value:Math.max(0,+e.target.value||0);calc()});
+$("list").addEventListener("click",e=>{const d=e.target.dataset.del;
+ if(d!=null){S.items.splice(+d,1);openI=-1;renderList();calc();return}
+ const t=e.target.closest("[data-tog]");if(!t)return;const i=+t.dataset.tog;openI=openI===i?-1:i;renderList();calc()});
+function addItem(it,focusId){
+ const dup=it.n?S.items.findIndex(x=>low(x.n)===low(it.n)):-1;
+ if(dup>=0){openI=dup;renderList();calc();flash(`${it.n} sudah ada di daftar. Ubah jumlahnya di sini.`);const q=$("q"+dup);q&&q.focus();q&&q.select&&q.select();return}
+ S.items.push(it);openI=S.items.length-1;renderList();calc();
+ flash(`Ditambahkan: ${it.n||"alat lain"}. Sesuaikan jumlah dan jam pakainya.`);
+ const row=document.querySelector(".item:last-child");row&&row.scrollIntoView({block:"nearest",behavior:"smooth"});
+ if(focusId){const el=$(focusId+openI);el&&el.focus()}}
+const POP=["Lampu LED 9 W","Kulkas 1 pintu","AC 1/2 PK","Rice cooker – memasak","TV LED 32 inci","Kipas angin berdiri","Pompa air 125 W","Charger HP biasa"];
+let hits=[],act=-1;
+function search(q){const t=low(q).split(" ").filter(Boolean);
+ if(!t.length)return POP.map(n=>CAT.find(c=>c[0]===n));
+ return CAT.map(c=>{const hay=low(c[0]+" "+c[4]);if(!t.every(w=>hay.includes(w)))return null;
+  const nm=low(c[0]),ph=t.join(" ");return[c,(nm.startsWith(ph)?0:nm.includes(ph)?1:nm.startsWith(t[0])?2:nm.includes(t[0])?3:4)]}).filter(Boolean).sort((a,b)=>a[1]-b[1]).map(x=>x[0])}
+function showSaran(){const q=$("cari").value.trim(),box=$("saran");hits=search(q);act=-1;
+ box.innerHTML=(q?"":'<div class="grp">Sering dipakai</div>')+hits.map((c,i)=>`<button type="button" role="option" data-h="${i}"><span>${esc(c[0])}</span><small>${num(c[1])} W</small></button>`).join("")
+  +(q?`<button type="button" class="other" data-other="1"><span>+ Tambah “${esc(q)}” sebagai alat lain</span><small>isi watt sendiri</small></button>`:"")
+  +(q&&!hits.length?'<div class="grp">Tidak ketemu di daftar. Tambahkan sebagai alat lain, lalu isi watt-nya.</div>':"");
+ box.hidden=false;$("cari").setAttribute("aria-expanded","true")}
+function hideSaran(){$("saran").hidden=true;$("cari").setAttribute("aria-expanded","false")}
+function pick(i){const c=hits[i];hideSaran();$("cari").value="";addItem(fromCat(c))}
+function pickOther(){const q=$("cari").value.trim();hideSaran();$("cari").value="";addItem({n:q,w:100,q:1,h:1},"w")}
+$("cari").addEventListener("input",showSaran);$("cari").addEventListener("focus",showSaran);
+$("cari").addEventListener("keydown",e=>{const btns=[...$("saran").querySelectorAll("button")];if(!btns.length)return;
+ if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();act=(act+(e.key==="ArrowDown"?1:-1)+btns.length)%btns.length;btns.forEach((b,i)=>b.classList.toggle("act",i===act));btns[act].scrollIntoView({block:"nearest"})}
+ else if(e.key==="Enter"){e.preventDefault();(btns[act<0?0:act]).click()}else if(e.key==="Escape")hideSaran()});
+$("saran").addEventListener("mousedown",e=>e.preventDefault());
+$("saran").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;if(b.dataset.other)pickOther();else pick(+b.dataset.h)});
+document.addEventListener("click",e=>{if(!e.target.closest(".srch"))hideSaran()});
+function flash(msg){const h=$("addMsg");h.textContent=msg;clearTimeout(flash.t);flash.t=setTimeout(()=>h.textContent="",4000)}
+$("resetBtn").addEventListener("click",()=>{openI=-1;S.items=sampleItems();renderList();calc();flash("Contoh rumah tangga diisi. Ubah atau hapus sesuai rumahmu.")});
+$("clearBtn").addEventListener("click",()=>{openI=-1;S.items=[];renderList();calc()});
+syncTop();renderList();calc();
+}
+</script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))</script>
+</body>
+</html>
